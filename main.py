@@ -1,4 +1,45 @@
 import tkinter as tk
+import requests
+import json
+
+# API 키와 헤더 설정
+headers = {
+    "x-nxopen-api-key": "test_1afb40fe1643062715cabee53b8c4aa9876c94ce1f82999c2f4ad21e3937c6deefe8d04e6d233bd35cf2fabdeb93fb0d"
+}
+
+def get_ouid(character_name):
+    userouidURL = "https://open.api.nexon.com/fconline/v1/id?nickname=" + character_name
+    response = requests.get(userouidURL, headers=headers)
+    response_json = response.json()
+    return response_json.get('ouid')
+
+def get_user_info(ouid):
+    userinfoURL = 'https://open.api.nexon.com/fconline/v1/user/basic?ouid=' + ouid
+    response = requests.get(userinfoURL, headers=headers)
+    response_json = response.json()
+    return response_json.get('nickname'), response_json.get('level')
+
+def get_match_ids(ouid, matchtype='50', offset='0', limit='20'):
+    usermatchURL = ('https://open.api.nexon.com/fconline/v1/user/match?ouid=' + ouid +
+                    '&matchtype=' + matchtype + '&offset=' + offset + '&limit=' + limit)
+    response = requests.get(usermatchURL, headers=headers)
+    return response.json()
+
+def get_match_details(match_ids):
+    match_details = []
+    for matchid in match_ids:
+        userdetailinfoURL = 'https://open.api.nexon.com/fconline/v1/match-detail?matchid=' + matchid
+        response = requests.get(userdetailinfoURL, headers=headers)
+        match_detail = response.json()
+        match_details.append(match_detail)
+    return match_details
+
+def print_other_player_nicknames(match_details, main_nickname):
+    for match_detail in match_details:
+        for match_info in match_detail.get('matchInfo', []):
+            if match_info.get('nickname') != main_nickname:
+                player_nickname = match_info.get('nickname')
+                print(f"Match ID: {match_detail['matchId']}, Player Nickname: {player_nickname}")
 
 class FC_GG_App:
     def __init__(self, root):
@@ -64,16 +105,26 @@ class FC_GG_App:
         self.player_search_button.grid(row=2, column=2, padx=5, pady=5, sticky="s")
 
         # 오른쪽 프레임: 검색 결과
-        search_result_frame = tk.Frame(right_frame, bg='lightgrey')
-        search_result_frame.pack(fill="x")
+        self.search_result_frame = tk.Frame(right_frame, bg='lightgrey')
+        self.search_result_frame.pack(fill="x")
 
-        tk.Label(search_result_frame, text="검색 결과", font=("Helvetica", 16, "bold"), bg='lightgrey').pack(
+        tk.Label(self.search_result_frame, text="검색 결과", font=("Helvetica", 16, "bold"), bg='lightgrey').pack(
             anchor="center", pady=10)
-        # 여기에 검색 결과 내용을 추가하세요.
 
     def show_search_results(self):
-        self.create_search_screen()
-        # 실제 검색 결과를 표시하는 코드를 여기에 추가합니다.
+        nickname = self.nickname_entry.get()
+        if nickname:
+            ouid = get_ouid(nickname)
+            if ouid:
+                user_nickname, user_level = get_user_info(ouid)
+                match_ids = get_match_ids(ouid)
+                match_details = get_match_details(match_ids)
+
+                # 검색 결과 화면 업데이트
+                self.clear_search_results()
+                result_text = f"\n\nNickname: {user_nickname}\n\nLevel: {user_level}"
+                tk.Label(self.search_result_frame, text=result_text, bg='white', font=("Helvetica", 30)).pack(
+                    anchor="center", pady=5)
 
     def show_favorites_screen(self):
         self.clear_screen()
@@ -104,6 +155,10 @@ class FC_GG_App:
 
     def clear_screen(self):
         for widget in self.content_frame.winfo_children():
+            widget.destroy()
+
+    def clear_search_results(self):
+        for widget in self.search_result_frame.winfo_children():
             widget.destroy()
 
 if __name__ == "__main__":
