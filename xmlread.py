@@ -56,3 +56,14 @@ def main(character_name):
 if __name__ == "__main__":
     character_name = "극지고"
     main(character_name)
+    url = "https://open.api.nexon.com/static/fconline/meta/spid.json"
+
+    # API 호출
+    response = requests.get(url)
+
+    # 응답 JSON 파싱
+    spid_data = response.json()
+
+    # 결과 출력 (예시로 첫 번째 데이터만 출력)
+    print(json.dumps(spid_data[0], indent=4, ensure_ascii=False))
+    print(len(spid_data))

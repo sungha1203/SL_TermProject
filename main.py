@@ -9,11 +9,13 @@ headers = {
     "x-nxopen-api-key": "test_1afb40fe1643062715cabee53b8c4aa9876c94ce1f82999c2f4ad21e3937c6deefe8d04e6d233bd35cf2fabdeb93fb0d"
 }
 
+
 def get_ouid(character_name):
     userouidURL = "https://open.api.nexon.com/fconline/v1/id?nickname=" + character_name
     response = requests.get(userouidURL, headers=headers)
     response_json = response.json()
     return response_json.get('ouid')
+
 
 def get_user_info(ouid):
     userinfoURL = 'https://open.api.nexon.com/fconline/v1/user/basic?ouid=' + ouid
@@ -21,11 +23,13 @@ def get_user_info(ouid):
     response_json = response.json()
     return response_json.get('nickname'), response_json.get('level')
 
+
 def get_match_ids(ouid, matchtype='50', offset='0', limit='20'):
     usermatchURL = ('https://open.api.nexon.com/fconline/v1/user/match?ouid=' + ouid +
                     '&matchtype=' + matchtype + '&offset=' + offset + '&limit=' + limit)
     response = requests.get(usermatchURL, headers=headers)
     return response.json()
+
 
 def get_match_details(match_ids):
     match_details = []
@@ -36,6 +40,25 @@ def get_match_details(match_ids):
         match_details.append(match_detail)
     return match_details
 
+
+def get_maxdivision(ouid):
+    MaxDivisionURL = 'https://open.api.nexon.com/fconline/v1/user/maxdivision?ouid=' + ouid
+    response = requests.get(MaxDivisionURL, headers=headers)
+    response_json = response.json()
+
+    # 응답이 리스트인지 확인하고, 리스트라면 첫 번째 요소를 가져옴
+    if isinstance(response_json, list) and len(response_json) > 0:
+        return response_json[0].get('division')
+    else:
+        return None
+
+
+def get_spid_metadata():
+    url = "https://open.api.nexon.com/static/fconline/meta/spid.json"
+    response = requests.get(url)
+    return response.json()
+
+
 def print_other_player_nicknames(match_details, main_nickname):
     for match_detail in match_details:
         for match_info in match_detail.get('matchInfo', []):
@@ -43,6 +66,10 @@ def print_other_player_nicknames(match_details, main_nickname):
                 player_nickname = match_info.get('nickname')
                 print(f"Match ID: {match_detail['matchId']}, Player Nickname: {player_nickname}")
 
+def get_division_data():
+    url = "https://open.api.nexon.com/static/fconline/meta/division.json"
+    response = requests.get(url)
+    return response.json()
 class FC_GG_App:
     def __init__(self, root):
         self.root = root
@@ -77,15 +104,18 @@ class FC_GG_App:
         self.favorite_icon = ImageTk.PhotoImage(self.favorite_icon)
 
         # Create sound toggle button
-        self.sound_button = tk.Button(self.header_frame, image=self.sound_on_image, command=self.toggle_sound, bg='lightgrey')
+        self.sound_button = tk.Button(self.header_frame, image=self.sound_on_image, command=self.toggle_sound,
+                                      bg='lightgrey')
         self.sound_button.pack(side="left", padx=10, pady=10)
 
         self.is_sound_on = True
 
-        self.favorites_button = tk.Button(self.header_frame, text="즐겨찾기  ", image=self.favorite_icon, compound="left", command=self.show_favorites_screen)
+        self.favorites_button = tk.Button(self.header_frame, text="즐겨찾기  ", image=self.favorite_icon, compound="left",
+                                          command=self.show_favorites_screen)
         self.favorites_button.pack(side="right", padx=20, pady=20)
 
-        self.search_button = tk.Button(self.header_frame, text="검색  ", image=self.search_icon, compound="left", command=self.create_search_screen)
+        self.search_button = tk.Button(self.header_frame, text="검색  ", image=self.search_icon, compound="left",
+                                       command=self.create_search_screen)
         self.search_button.pack(side="right", padx=20, pady=20)
 
         self.content_frame = tk.Frame(self.root, bg='white')
@@ -139,14 +169,15 @@ class FC_GG_App:
         tk.Label(left_frame, text="선수 검색", bg='white').grid(row=2, column=0, padx=5, pady=5, sticky="s")
         self.player_entry = tk.Entry(left_frame, width=20)
         self.player_entry.grid(row=2, column=1, padx=5, pady=5, sticky="s")
-        self.player_search_button = tk.Button(left_frame, text="검색", command=self.show_search_results)
+        self.player_search_button = tk.Button(left_frame, text="검색", command=self.show_player_results)
         self.player_search_button.grid(row=2, column=2, padx=5, pady=5, sticky="s")
 
         # 오른쪽 프레임: 검색 결과
         self.search_result_frame = tk.Frame(right_frame, bg='lightgrey')
         self.search_result_frame.pack(fill="x")
 
-        self.search_result_label = tk.Label(self.search_result_frame, text="검색 결과", font=("Helvetica", 16, "bold"), bg='lightgrey')
+        self.search_result_label = tk.Label(self.search_result_frame, text="검색 결과", font=("Helvetica", 16, "bold"),
+                                            bg='lightgrey')
         self.search_result_label.pack(anchor="center", pady=10)
 
         self.results_frame = tk.Frame(right_frame, bg='white')
@@ -160,14 +191,33 @@ class FC_GG_App:
                 user_nickname, user_level = get_user_info(ouid)
                 match_ids = get_match_ids(ouid)
                 match_details = get_match_details(match_ids)
+                max_division_id  = get_maxdivision(ouid)
+
+                division_data = get_division_data()
+                division_name = next(
+                    (item['divisionName'] for item in division_data if item['divisionId'] == max_division_id),
+                    "Unknown Division")
 
                 # 검색 결과 화면 업데이트
                 self.clear_search_results()
                 self.search_result_label.pack(anchor="center", pady=10)
                 # 결과값들을 표시하는 라벨
-                result_text = f"Nickname: {user_nickname}\nLevel: {user_level}"
+                result_text = f"닉네임: {user_nickname}\n\nLevel: {user_level}\n\n최고 등급: {division_name}"
                 result_label = tk.Label(self.results_frame, text=result_text, bg='white', font=("Helvetica", 30))
                 result_label.pack(anchor="center", pady=5)
+
+    def show_player_results(self):
+        # 선수 메타데이터 조회
+        spid_data = get_spid_metadata()
+
+        # 검색 결과 화면 업데이트
+        self.clear_search_results()
+        self.search_result_label.pack(anchor="center", pady=10)
+        # 결과값들을 표시하는 라벨 (예시로 첫 번째 데이터만 출력)
+        if spid_data:
+            result_text = json.dumps(spid_data[0], indent=4, ensure_ascii=False)
+            result_label = tk.Label(self.results_frame, text=result_text, bg='white', font=("Helvetica", 12))
+            result_label.pack(anchor="center", pady=5)
 
     def show_favorites_screen(self):
         self.clear_screen()
@@ -203,6 +253,7 @@ class FC_GG_App:
     def clear_search_results(self):
         for widget in self.results_frame.winfo_children():
             widget.destroy()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
