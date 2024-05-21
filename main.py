@@ -27,17 +27,24 @@ class FC_GG_App:
         self.sound_on_image = ImageTk.PhotoImage(self.sound_on_image)
         self.sound_off_image = ImageTk.PhotoImage(self.sound_off_image)
 
+        # Load images for buttons
+        self.search_icon = Image.open("돋보기.png").convert("RGBA")
+        self.favorite_icon = Image.open("별.png").convert("RGBA")
+
+        self.search_icon = ImageTk.PhotoImage(self.search_icon)
+        self.favorite_icon = ImageTk.PhotoImage(self.favorite_icon)
+
         # Create sound toggle button
         self.sound_button = tk.Button(self.header_frame, image=self.sound_on_image, command=self.toggle_sound, bg='lightgrey')
         self.sound_button.pack(side="left", padx=10, pady=10)
 
         self.is_sound_on = True
 
-        self.favorites_button = tk.Button(self.header_frame, text="즐겨찾기", command=self.show_favorites_screen)
-        self.favorites_button.pack(side="right", padx=50, pady=10)
+        self.favorites_button = tk.Button(self.header_frame, text="즐겨찾기  ", image=self.favorite_icon, compound="left", command=self.show_favorites_screen)
+        self.favorites_button.pack(side="right", padx=20, pady=20)
 
-        self.search_button = tk.Button(self.header_frame, text="검색", command=self.create_search_screen)
-        self.search_button.pack(side="right", padx=50, pady=10)
+        self.search_button = tk.Button(self.header_frame, text="검색  ", image=self.search_icon, compound="left", command=self.create_search_screen)
+        self.search_button.pack(side="right", padx=20, pady=20)
 
         self.content_frame = tk.Frame(self.root, bg='white')
         self.content_frame.pack(fill="both", expand=True)
