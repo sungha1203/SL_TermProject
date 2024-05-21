@@ -65,5 +65,5 @@ if __name__ == "__main__":
     spid_data = response.json()
 
     # 결과 출력 (예시로 첫 번째 데이터만 출력)
-    print(json.dumps(spid_data[0], indent=4, ensure_ascii=False))
+    print(json.dumps(spid_data[3], indent=4, ensure_ascii=False))
     print(len(spid_data))

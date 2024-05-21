@@ -3,6 +3,7 @@ from tkinter import messagebox
 from PIL import Image, ImageTk
 import pygame
 import requests
+import io
 import json
 import time
 
@@ -60,16 +61,22 @@ def print_other_player_nicknames(match_details, main_nickname):
                 player_nickname = match_info.get('nickname')
             print(f"Match ID: {match_detail['matchId']}, Player Nickname: {player_nickname}")
 
+
 def get_division_data():
     url = "https://open.api.nexon.com/static/fconline/meta/division.json"
     response = requests.get(url)
     return response.json()
 
+def get_season_metadata():
+    url = "https://open.api.nexon.com/static/fconline/meta/seasonid.json"
+    response = requests.get(url)
+    return response.json()
 class FC_GG_App:
     def __init__(self, root):
         self.root = root
         self.root.title("FC.GG")
         self.root.geometry("1000x700")  # 윈도우 크기 설정
+        self.season_data = get_season_metadata()
 
         self.favorites = []
 
@@ -128,6 +135,9 @@ class FC_GG_App:
 
         self.content_frame = tk.Frame(self.root, bg='white')
         self.content_frame.pack(fill="both", expand=True)
+
+        # Load SPID data
+        self.spid_data = get_spid_metadata()
 
         self.create_search_screen()
 
@@ -188,6 +198,19 @@ class FC_GG_App:
                                             bg='lightgrey')
         self.search_result_label.pack(anchor="center", pady=10)
 
+        # 검색 결과를 표시할 캔버스와 스크롤바
+        self.results_canvas = tk.Canvas(right_frame, bg='white')
+        self.results_scrollbar = tk.Scrollbar(right_frame, orient="vertical", command=self.results_canvas.yview)
+        self.results_scrollbar.pack(side="right", fill="y")
+        self.results_canvas.pack(side="left", fill="both", expand=True)
+        self.results_canvas.configure(yscrollcommand=self.results_scrollbar.set)
+
+        self.results_frame = tk.Frame(self.results_canvas, bg='white')
+        self.results_canvas.create_window((0, 0), window=self.results_frame, anchor="nw")
+        self.results_frame.bind("<Configure>", self.on_frame_configure)
+
+    def on_frame_configure(self, event):
+        self.results_canvas.configure(scrollregion=self.results_canvas.bbox("all"))
         self.results_frame = tk.Frame(right_frame, bg='white')
         self.results_frame.pack(fill="both", expand=True, pady=(0, 20))
 
@@ -214,6 +237,55 @@ class FC_GG_App:
                 result_label = tk.Label(self.results_frame, text=result_text, bg='white', font=("Helvetica", 30))
                 result_label.pack(anchor="center", pady=5)
 
+    def show_player_results(self):
+        player_name = self.player_entry.get().lower()
+        if player_name:
+            # 선수 이름 검색
+            matching_players = [player for player in self.spid_data if player_name in player['name'].lower()]
+
+            # 검색 결과 화면 업데이트
+            self.clear_search_results()
+            self.search_result_label.pack(anchor="center", pady=10)
+
+            if matching_players:
+                for player in matching_players:
+                    # Extract the season ID from the SPID
+                    season_id = str(player['id'])[:3]
+                    # Find the season image URL
+                    season_image_url = next(
+                        (season['seasonImg'] for season in self.season_data if season['seasonId'] == int(season_id)),
+                        None)
+
+                    player_image_url = f"https://fco.dn.nexoncdn.co.kr/live/externalAssets/common/playersAction/p{player['id']}.png"
+                    response = requests.get(player_image_url)
+                    if response.status_code == 200:
+                        image_data = response.content
+                        image = Image.open(io.BytesIO(image_data))
+                        photo = ImageTk.PhotoImage(image)
+                        frame = tk.Frame(self.results_frame, bg='white')
+                        frame.pack(anchor="center", pady=5)
+                        image_label = tk.Label(frame, image=photo, bg='white')
+                        image_label.image = photo  # Keep a reference to the image to avoid garbage collection
+                        image_label.pack(side="left", padx=10)
+
+                        # Add season icon if available
+                        if season_image_url:
+                            season_response = requests.get(season_image_url)
+                            if season_response.status_code == 200:
+                                season_image_data = season_response.content
+                                season_image = Image.open(io.BytesIO(season_image_data))
+                                season_photo = ImageTk.PhotoImage(season_image)
+                                season_image_label = tk.Label(frame, image=season_photo, bg='white')
+                                season_image_label.image = season_photo  # Keep a reference to the image to avoid garbage collection
+                                season_image_label.pack(side="left", padx=10)
+
+                        text_label = tk.Label(frame, text=f"Player Name: {player['name']}", bg='white',
+                                              font=("Helvetica", 12))
+                        text_label.pack(side="left")
+            else:
+                result_label = tk.Label(self.results_frame, text="No matching players found.", bg='white',
+                                        font=("Helvetica", 12))
+                result_label.pack(anchor="center", pady=5)
                 if not self.check_button:
                     self.check_button = tk.Button(self.search_result_frame, image=self.check_icon,
                                                   command=lambda: self.add_to_favorites(user_nickname), bg='lightgrey')
