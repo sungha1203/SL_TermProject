@@ -108,8 +108,11 @@ class FC_GG_App:
         self.search_result_frame = tk.Frame(right_frame, bg='lightgrey')
         self.search_result_frame.pack(fill="x")
 
-        tk.Label(self.search_result_frame, text="검색 결과", font=("Helvetica", 16, "bold"), bg='lightgrey').pack(
-            anchor="center", pady=10)
+        self.search_result_label = tk.Label(self.search_result_frame, text="검색 결과", font=("Helvetica", 16, "bold"), bg='lightgrey')
+        self.search_result_label.pack(anchor="center", pady=10)
+
+        self.results_frame = tk.Frame(right_frame, bg='white')
+        self.results_frame.pack(fill="both", expand=True, pady=(0, 20))  # 위쪽 여백은 0, 아래쪽 여백은 20으로 설정
 
     def show_search_results(self):
         nickname = self.nickname_entry.get()
@@ -122,9 +125,11 @@ class FC_GG_App:
 
                 # 검색 결과 화면 업데이트
                 self.clear_search_results()
-                result_text = f"\n\nNickname: {user_nickname}\n\nLevel: {user_level}"
-                tk.Label(self.search_result_frame, text=result_text, bg='white', font=("Helvetica", 30)).pack(
-                    anchor="center", pady=5)
+                self.search_result_label.pack(anchor="center", pady=10)
+                # 결과값들을 표시하는 라벨
+                result_text = f"Nickname: {user_nickname}\nLevel: {user_level}"
+                result_label = tk.Label(self.results_frame, text=result_text, bg='white', font=("Helvetica", 30))
+                result_label.pack(anchor="center", pady=5)
 
     def show_favorites_screen(self):
         self.clear_screen()
@@ -158,7 +163,7 @@ class FC_GG_App:
             widget.destroy()
 
     def clear_search_results(self):
-        for widget in self.search_result_frame.winfo_children():
+        for widget in self.results_frame.winfo_children():
             widget.destroy()
 
 if __name__ == "__main__":
