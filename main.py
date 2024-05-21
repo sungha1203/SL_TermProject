@@ -53,6 +53,7 @@ class FC_GG_App:
         pygame.mixer.init()
         self.bgm_file = "FIFASOUND.mp3"  # Replace with your actual BGM file
         pygame.mixer.music.load(self.bgm_file)
+        pygame.mixer.music.set_volume(0.5)  # Set the volume to 50%
         pygame.mixer.music.play(-1)  # Play the BGM in a loop
 
         self.header_frame = tk.Frame(self.root, bg='lightgrey')
