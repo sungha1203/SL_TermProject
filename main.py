@@ -1,4 +1,6 @@
 import tkinter as tk
+from PIL import Image, ImageTk  # You'll need to install pillow library
+import pygame  # You'll need to install pygame library
 import requests
 import json
 
@@ -47,11 +49,30 @@ class FC_GG_App:
         self.root.title("FC.GG")
         self.root.geometry("1000x700")  # 윈도우 크기 설정
 
+        # Initialize pygame mixer
+        pygame.mixer.init()
+        self.bgm_file = "FIFASOUND.mp3"  # Replace with your actual BGM file
+        pygame.mixer.music.load(self.bgm_file)
+        pygame.mixer.music.play(-1)  # Play the BGM in a loop
+
         self.header_frame = tk.Frame(self.root, bg='lightgrey')
         self.header_frame.pack(side="top", fill="x")
 
         self.logo_label = tk.Label(self.header_frame, text="FC.GG", font=("Helvetica", 24), bg='lightgrey')
         self.logo_label.pack(side="left", padx=10, pady=10)
+
+        # Load images for sound toggle
+        self.sound_on_image = Image.open("1.png").convert("RGBA")
+        self.sound_off_image = Image.open("2.png").convert("RGBA")
+
+        self.sound_on_image = ImageTk.PhotoImage(self.sound_on_image)
+        self.sound_off_image = ImageTk.PhotoImage(self.sound_off_image)
+
+        # Create sound toggle button
+        self.sound_button = tk.Button(self.header_frame, image=self.sound_on_image, command=self.toggle_sound, bg='lightgrey')
+        self.sound_button.pack(side="left", padx=10, pady=10)
+
+        self.is_sound_on = True
 
         self.favorites_button = tk.Button(self.header_frame, text="즐겨찾기", command=self.show_favorites_screen)
         self.favorites_button.pack(side="right", padx=50, pady=10)
@@ -63,6 +84,15 @@ class FC_GG_App:
         self.content_frame.pack(fill="both", expand=True)
 
         self.create_search_screen()
+
+    def toggle_sound(self):
+        if self.is_sound_on:
+            pygame.mixer.music.pause()
+            self.sound_button.config(image=self.sound_off_image)
+        else:
+            pygame.mixer.music.unpause()
+            self.sound_button.config(image=self.sound_on_image)
+        self.is_sound_on = not self.is_sound_on
 
     def update_button_colors(self, active_button):
         inactive_color = "lightgrey"
