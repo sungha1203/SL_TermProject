@@ -101,10 +101,8 @@ class FC_GG_App:
         self.logo_photo = ImageTk.PhotoImage(self.logo_image)
 
         # 로고 라벨 추가+
-        self.logo_label = tk.Label(self.header_frame, image=self.logo_photo, bg='lightgrey')
-        self.logo_label.grid(row=0, column=0, padx=10, pady=10)
-
-
+        self.logo_button = tk.Button(self.header_frame, image=self.logo_photo, command=self.open_logo_window, bg='light yellow')
+        self.logo_button.grid(row=0, column=0, padx=0, pady=1)
 
 
         # Create sound toggle button
@@ -115,11 +113,19 @@ class FC_GG_App:
         self.sound_off_image = ImageTk.PhotoImage(self.sound_off_image)
 
         self.sound_button = tk.Button(self.header_frame, image=self.sound_on_image, command=self.toggle_sound,
-                                      bg='lightgrey')
+                                      bg='light yellow')
         self.sound_button.grid(row=0, column=1, padx=10, pady=10)
 
         self.is_sound_on = True
 
+        # Load map button image
+        self.map_icon = Image.open("map.png").convert("RGBA")
+        self.map_icon = ImageTk.PhotoImage(self.map_icon)
+
+        # Create map button
+        self.map_button = tk.Button(self.header_frame, image=self.map_icon, command=self.open_map_window,
+                                    bg='light yellow')
+        self.map_button.grid(row=0, column=2, padx=10, pady=10)
         # 시간 라벨 추가
         self.time_label = tk.Label(self.header_frame, font=("Helvetica", 16), bg='light yellow')
         self.time_label.grid(row=0, column=3, padx=10, pady=10)
@@ -202,11 +208,11 @@ class FC_GG_App:
         self.player_search_button.grid(row=2, column=2, padx=5, pady=5, sticky="s")
 
         # 오른쪽 프레임: 검색 결과
-        self.search_result_frame = tk.Frame(right_frame, bg='lightgrey', height=40)  # Height fixed for consistency
+        self.search_result_frame = tk.Frame(right_frame, bg='light blue', height=40)  # Height fixed for consistency
         self.search_result_frame.pack(fill="x")
 
         self.search_result_label = tk.Label(self.search_result_frame, text="검색 결과", font=("Helvetica", 16, "bold"),
-                                            bg='lightgrey')
+                                            bg='light blue')
         self.search_result_label.pack(anchor="center", pady=10)
 
         # 검색 결과를 표시할 캔버스와 스크롤바
@@ -275,16 +281,18 @@ class FC_GG_App:
         left_frame = tk.Frame(self.content_frame, bg='white', bd=2, relief="groove", width=300, height=frame_height)
         left_frame.pack(side="left", fill="y", padx=20, pady=20)
 
-        right_frame = tk.Frame(self.content_frame, bg='white', bd=2, relief="groove", width=600, height=frame_height)
-        right_frame.pack(side="right", fill="both", expand=True, padx=20, pady=20)
+        self.right_frame = tk.Frame(self.content_frame, bg='white', bd=2, relief="groove", width=600,
+                                    height=frame_height)
+        self.right_frame.pack(side="right", fill="both", expand=True, padx=20, pady=20)
 
         left_frame.grid_propagate(False)
         left_frame.columnconfigure(0, weight=1)
         left_frame.rowconfigure([0, 1, 2, 3], weight=1)
 
-        favorites_frame = tk.Frame(left_frame, bg='lightgrey')
+        favorites_frame = tk.Frame(left_frame, bg='light blue')
         favorites_frame.pack(fill="x")
-        tk.Label(favorites_frame, text="즐겨찾기 목록", font=("Helvetica", 16, "bold"), bg='lightgrey').pack(anchor="center", pady=10)
+        tk.Label(favorites_frame, text="즐겨찾기 목록", font=("Helvetica", 16, "bold"), bg='light blue').pack(anchor="center",
+                                                                                                        pady=10)
 
         self.favorites_listbox = tk.Listbox(favorites_frame, height=15)  # Height adjusted for larger entries
         self.favorites_listbox.pack(fill="both", expand=True)
@@ -299,23 +307,26 @@ class FC_GG_App:
         self.show_search_results_for_favorite(selected_favorite)
 
     def show_search_results_for_favorite(self, nickname):
-        ouid = get_ouid(nickname)
-        if ouid:
-            user_nickname, user_level = get_user_info(ouid)
-            match_ids = get_match_ids(ouid)
-            match_details = get_match_details(match_ids)
-            max_division_id = get_maxdivision(ouid)
+        for widget in self.right_frame.winfo_children():
+            widget.destroy()
 
-            division_data = get_division_data()
-            division_name = next(
-                (item['divisionName'] for item in division_data if item['divisionId'] == max_division_id),
-                "Unknown Division")
+        result_text = f"닉네임: {nickname}"
+        result_label = tk.Label(self.right_frame, text=result_text, bg='white', font=("Helvetica", 30))
+        result_label.pack(anchor="center", pady=5)
 
-            self.clear_search_results()
-            self.search_result_label.pack(anchor="center", pady=10)
-            result_text = f"닉네임: {user_nickname}\n\nLevel: {user_level}\n\n최고 등급: {division_name}"
-            result_label = tk.Label(self.results_frame, text=result_text, bg='white', font=("Helvetica", 30))
-            result_label.pack(anchor="center", pady=5)
+        # Add buttons for user match history and transaction history
+        match_history_button = tk.Button(self.right_frame, text="유저 매치 기록 조회", command=self.show_match_history, font=("Helvetica", 20))
+        match_history_button.pack(anchor="center", pady=10)
+
+        transaction_history_button = tk.Button(self.right_frame, text="유저의 거래 기록 조회",
+                                               command=self.show_transaction_history, font=("Helvetica", 20))
+        transaction_history_button.pack(anchor="center", pady=10)
+
+    def show_match_history(self):
+        messagebox.showinfo("기능 미구현", "유저 매치 기록 조회 기능은 아직 구현되지 않았습니다.")
+
+    def show_transaction_history(self):
+        messagebox.showinfo("기능 미구현", "유저의 거래 기록 조회 기능은 아직 구현되지 않았습니다.")
 
     def show_player_results(self):
         player_name = self.player_entry.get().lower()
@@ -384,9 +395,21 @@ class FC_GG_App:
             self.check_button = None
 
     def update_time(self):
-        now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() + 0 * 3600))
+        now = time.strftime("%Y년 %m월 %d일\n%H시  %M분  %S초", time.localtime(time.time() + 0 * 3600))
         self.time_label.config(text=now)
         self.root.after(1000, self.update_time)
+
+    def open_map_window(self):
+        map_window = tk.Toplevel(self.root)
+        map_window.title("구글 맵")
+        map_window.geometry("800x800")  # Set window size to 800x800
+
+    def open_logo_window(self):
+        logo_window = tk.Toplevel(self.root)
+        logo_window.title("만든 사람")
+        logo_window.geometry("300x70")  # Set window size to 800x800
+        info_label = tk.Label(logo_window, text="한국공학대학교\n2020180002 곽정민\n2020184038 황성하", font=("Helvetica", 12))
+        info_label.pack(expand=True, fill="both", padx=10, pady=10)
 
 if __name__ == "__main__":
     root = tk.Tk()
