@@ -6,7 +6,7 @@ import io
 
 # API 키와 헤더 설정
 headers = {
-    "x-nxopen-api-key": "test_1afb40fe1643062715cabee53b8c4aa9d7a211cfa2612f3d86f8a0f56af4eafbefe8d04e6d233bd35cf2fabdeb93fb0d"
+    "x-nxopen-api-key": "test_1afb40fe1643062715cabee53b8c4aa9ee9b63d1681179d0fb5b094f52c349a8efe8d04e6d233bd35cf2fabdeb93fb0d"
 }
 
 
