@@ -9,7 +9,7 @@ import time
 
 # API 키와 헤더 설정
 headers = {
-    "x-nxopen-api-key": "test_1afb40fe1643062715cabee53b8c4aa9ee9b63d1681179d0fb5b094f52c349a8efe8d04e6d233bd35cf2fabdeb93fb0d"
+    "x-nxopen-api-key": "test_a1117976d21f0e110832cec871e43bd95a8b6510b740e366a06718fec6508af6efe8d04e6d233bd35cf2fabdeb93fb0d"
 }
 
 def get_ouid(character_name):
@@ -87,7 +87,7 @@ class FC_GG_App:
         pygame.mixer.music.set_volume(0.5)  # Set the volume to 50%
         pygame.mixer.music.play(-1)  # Play the BGM in a loop
 
-        self.header_frame = tk.Frame(self.root, bg='lightgrey')
+        self.header_frame = tk.Frame(self.root, bg='light yellow')
         self.header_frame.pack(side="top", fill="x")
 
         self.header_frame.grid_columnconfigure(0, weight=1)
@@ -96,8 +96,16 @@ class FC_GG_App:
         self.header_frame.grid_columnconfigure(3, weight=1)
         self.header_frame.grid_columnconfigure(4, weight=1)
 
-        self.logo_label = tk.Label(self.header_frame, text="FC.GG", font=("Helvetica", 24), bg='lightgrey')
+        # 로고 이미지 로드
+        self.logo_image = Image.open("FCGG.png")
+        self.logo_photo = ImageTk.PhotoImage(self.logo_image)
+
+        # 로고 라벨 추가+
+        self.logo_label = tk.Label(self.header_frame, image=self.logo_photo, bg='lightgrey')
         self.logo_label.grid(row=0, column=0, padx=10, pady=10)
+
+
+
 
         # Create sound toggle button
         self.sound_on_image = Image.open("1.png").convert("RGBA")
@@ -113,8 +121,8 @@ class FC_GG_App:
         self.is_sound_on = True
 
         # 시간 라벨 추가
-        self.time_label = tk.Label(self.header_frame, font=("Helvetica", 16), bg='lightgrey')
-        self.time_label.grid(row=0, column=2, padx=10, pady=10)
+        self.time_label = tk.Label(self.header_frame, font=("Helvetica", 16), bg='light yellow')
+        self.time_label.grid(row=0, column=3, padx=10, pady=10)
 
         # Load images for buttons
         self.search_icon = Image.open("돋보기.png").convert("RGBA")
@@ -127,11 +135,11 @@ class FC_GG_App:
 
         self.search_button = tk.Button(self.header_frame, text="검색  ", image=self.search_icon, compound="left",
                                        command=self.create_search_screen)
-        self.search_button.grid(row=0, column=3, padx=20, pady=20)
+        self.search_button.grid(row=0, column=4, padx=20, pady=20)
 
         self.favorites_button = tk.Button(self.header_frame, text="즐겨찾기  ", image=self.favorite_icon, compound="left",
                                           command=self.show_favorites_screen)
-        self.favorites_button.grid(row=0, column=4, padx=20, pady=20)
+        self.favorites_button.grid(row=0, column=5, padx=20, pady=20)
 
         self.content_frame = tk.Frame(self.root, bg='white')
         self.content_frame.pack(fill="both", expand=True)
