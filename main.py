@@ -1,22 +1,27 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import ttk, messagebox
 from PIL import Image, ImageTk
 import pygame
 import requests
 import io
 import json
 import time
+import tkintermapview  # Import the tkintermapview for map functionality
+import xml.etree.ElementTree as ET
 
 # API 키와 헤더 설정
 headers = {
     "x-nxopen-api-key": "test_1afb40fe1643062715cabee53b8c4aa9d7a211cfa2612f3d86f8a0f56af4eafbefe8d04e6d233bd35cf2fabdeb93fb0d"
 }
 
+
+# Functions for API interactions
 def get_ouid(character_name):
     userouidURL = "https://open.api.nexon.com/fconline/v1/id?nickname=" + character_name
     response = requests.get(userouidURL, headers=headers)
     response_json = response.json()
     return response_json.get('ouid')
+
 
 def get_user_info(ouid):
     userinfoURL = 'https://open.api.nexon.com/fconline/v1/user/basic?ouid=' + ouid
@@ -24,11 +29,13 @@ def get_user_info(ouid):
     response_json = response.json()
     return response_json.get('nickname'), response_json.get('level')
 
+
 def get_match_ids(ouid, matchtype='50', offset='0', limit='20'):
     usermatchURL = ('https://open.api.nexon.com/fconline/v1/user/match?ouid=' + ouid +
                     '&matchtype=' + matchtype + '&offset=' + offset + '&limit=' + limit)
     response = requests.get(usermatchURL, headers=headers)
     return response.json()
+
 
 def get_match_details(match_ids):
     match_details = []
@@ -38,6 +45,7 @@ def get_match_details(match_ids):
         match_detail = response.json()
         match_details.append(match_detail)
     return match_details
+
 
 def get_maxdivision(ouid):
     MaxDivisionURL = 'https://open.api.nexon.com/fconline/v1/user/maxdivision?ouid=' + ouid
@@ -49,27 +57,24 @@ def get_maxdivision(ouid):
     else:
         return None
 
+
 def get_spid_metadata():
     url = "https://open.api.nexon.com/static/fconline/meta/spid.json"
     response = requests.get(url)
     return response.json()
 
-def print_other_player_nicknames(match_details, main_nickname):
-    for match_detail in match_details:
-        for match_info in match_detail.get('matchInfo', []):
-            if match_info.get('nickname') != main_nickname:
-                player_nickname = match_info.get('nickname')
-            print(f"Match ID: {match_detail['matchId']}, Player Nickname: {player_nickname}")
 
 def get_division_data():
     url = "https://open.api.nexon.com/static/fconline/meta/division.json"
     response = requests.get(url)
     return response.json()
 
+
 def get_season_metadata():
     url = "https://open.api.nexon.com/static/fconline/meta/seasonid.json"
     response = requests.get(url)
     return response.json()
+
 
 class FC_GG_App:
     def __init__(self, root):
@@ -101,9 +106,9 @@ class FC_GG_App:
         self.logo_photo = ImageTk.PhotoImage(self.logo_image)
 
         # 로고 라벨 추가+
-        self.logo_button = tk.Button(self.header_frame, image=self.logo_photo, command=self.open_logo_window, bg='light yellow')
+        self.logo_button = tk.Button(self.header_frame, image=self.logo_photo, command=self.open_logo_window,
+                                     bg='light yellow')
         self.logo_button.grid(row=0, column=0, padx=0, pady=1)
-
 
         # Create sound toggle button
         self.sound_on_image = Image.open("1.png").convert("RGBA")
@@ -126,6 +131,7 @@ class FC_GG_App:
         self.map_button = tk.Button(self.header_frame, image=self.map_icon, command=self.open_map_window,
                                     bg='light yellow')
         self.map_button.grid(row=0, column=2, padx=10, pady=10)
+
         # 시간 라벨 추가
         self.time_label = tk.Label(self.header_frame, font=("Helvetica", 16), bg='light yellow')
         self.time_label.grid(row=0, column=3, padx=10, pady=10)
@@ -325,7 +331,8 @@ class FC_GG_App:
         result_label.pack(anchor="center", pady=5)
 
         # Add buttons for user match history and transaction history
-        match_history_button = tk.Button(self.right_frame, text="유저의 매치 기록 조회", command=self.show_match_history, font=("Helvetica", 20))
+        match_history_button = tk.Button(self.right_frame, text="유저의 매치 기록 조회", command=self.show_match_history,
+                                         font=("Helvetica", 20))
         match_history_button.pack(anchor="center", pady=10)
 
         transaction_history_button = tk.Button(self.right_frame, text="유저의 거래 기록 조회",
@@ -441,7 +448,6 @@ class FC_GG_App:
             # 선수 검색 시에는 스크롤바를 보임
             self.results_scrollbar.pack(side="right", fill="y")
 
-
     def clear_screen(self):
         for widget in self.content_frame.winfo_children():
             widget.destroy()
@@ -460,9 +466,7 @@ class FC_GG_App:
         self.root.after(1000, self.update_time)
 
     def open_map_window(self):
-        map_window = tk.Toplevel(self.root)
-        map_window.title("구글 맵")
-        map_window.geometry("800x800")  # Set window size to 800x800
+        self.initialize_map()
 
     def open_logo_window(self):
         logo_window = tk.Toplevel(self.root)
@@ -482,6 +486,159 @@ class FC_GG_App:
 
         info_label = tk.Label(logo_window, text="한국공학대학교\n\n2020180002 곽정민\n2020184038 황성하", font=("Helvetica", 18))
         info_label.pack(expand=True, fill="both", padx=10, pady=10)
+
+    def initialize_map(self):
+        # Create a new window for the map
+        map_window = tk.Toplevel(self.root)
+        map_window.title("구글 맵")
+        map_window.geometry("1200x800")
+
+        # 상단 프레임
+        top_frame = tk.Frame(map_window)
+        top_frame.pack(side=tk.TOP, fill=tk.X, pady=10)
+
+        # 도시 선택 콤보박스
+        tk.Label(top_frame, text="도시 선택:").pack(side=tk.LEFT, padx=10)
+        city_combobox = ttk.Combobox(top_frame, values=[
+            "시흥시", "안산시", "수원시", "고양시", "성남시", "부천시", "광명시", "과천시", "광주시",
+            "구리시", "군포시", "김포시", "남양주시", "동두천시", "문경시", "목포시", "양주시",
+            "여주시", "연천군", "오산시", "용인시", "의왕시", "의정부시", "이천시", "파주시",
+            "평택시", "포천시", "하남시", "화성시"
+        ])
+        city_combobox.pack(side=tk.LEFT, padx=10)
+
+        # 조회 버튼
+        search_button = tk.Button(top_frame, text="검색",
+                                  command=lambda: self.show_pc_rooms(map_widget, city_combobox))
+        search_button.pack(side=tk.LEFT, padx=10)
+
+        # 지도 보기 버튼
+        address_button = tk.Button(top_frame, text="피시방 찾기",
+                                   command=lambda: self.open_address_window(map_widget, city_combobox))
+        address_button.pack(side=tk.LEFT, padx=10)
+
+        # 지도 위젯
+        map_widget = tkintermapview.TkinterMapView(map_window, width=1200, height=700, corner_radius=0)
+        map_widget.set_position(37.339496586083, 126.73287520461)  # 초기 위치 설정
+        map_widget.set_zoom(18)  # 초기 줌 레벨 설정
+        map_widget.pack(expand=True, fill="both")
+
+    def fetch_data(self, sigun_nm):
+        # 요청 파라미터
+        api_url = "https://openapi.gg.go.kr/GameSoftwaresFacilityProvis"
+        api_key = "9c52941f1f09418cb908e5388454c307"
+
+        params = {
+            "KEY": api_key,
+            "Type": "xml",  # 응답 형식: xml
+            "pIndex": 1,  # 페이지 위치
+            "pSize": 1000,  # 페이지당 요청 수
+            "SIGUN_NM": sigun_nm,  # 시군명
+        }
+
+        response = requests.get(api_url, params=params)
+        if response.status_code == 200:
+            # XML 파싱
+            root = ET.fromstring(response.content)
+            items = root.findall(".//row")
+            result = []
+            for item in items:
+                if item.findtext("BSN_STATE_NM") == "운영중":
+                    name = item.findtext("BIZPLC_NM")  # 업체명
+                    address = item.findtext("REFINE_ROADNM_ADDR")  # 도로명 주소
+                    lat = item.findtext("REFINE_WGS84_LAT")  # 위도
+                    lng = item.findtext("REFINE_WGS84_LOGT")  # 경도
+                    result.append((name, address, lat, lng))
+            return result
+        else:
+            messagebox.showerror("Error", f"API request failed: {response.status_code}")
+            return []
+
+    def show_pc_rooms(self, map_widget, city_combobox):
+        sigun_nm = city_combobox.get()
+        if not sigun_nm:
+            messagebox.showwarning("Warning", "Please select a city.")
+            return
+
+        pc_rooms = self.fetch_data(sigun_nm)
+        if not pc_rooms:
+            messagebox.showinfo("Info", "No operational PC rooms found in the selected city.")
+            return
+
+        # Find the first PC room to set the map position to that city
+        if pc_rooms:
+            first_pc_room = pc_rooms[0]
+            lat = float(first_pc_room[2])
+            lng = float(first_pc_room[3])
+            map_widget.set_position(lat, lng)
+            map_widget.set_zoom(18)  # Set default zoom level
+
+        map_widget.delete_all_marker()
+
+        for room in pc_rooms:
+            try:
+                lat = float(room[2])
+                lng = float(room[3])
+                map_widget.set_marker(lat, lng, text=room[0])
+            except (ValueError, TypeError):
+                continue
+
+    def open_address_window(self, map_widget, city_combobox):
+        address_window = tk.Toplevel(self.root)
+        address_window.title("PC Room Addresses")
+        address_window.geometry("800x500")
+
+        top_frame = tk.Frame(address_window)
+        top_frame.pack(side=tk.TOP, fill=tk.X, pady=10)
+
+        search_label = tk.Label(top_frame, text="PC방 이름 검색:")
+        search_label.pack(side=tk.LEFT, padx=5)
+
+        search_entry = tk.Entry(top_frame)
+        search_entry.pack(side=tk.LEFT, padx=5)
+
+        address_tree = ttk.Treeview(address_window, columns=("Name", "Address", "Latitude", "Longitude"),
+                                    show="headings")
+        address_tree.heading("Name", text="이름")
+        address_tree.heading("Address", text="주소")
+        address_tree.heading("Latitude", text="위도")
+        address_tree.heading("Longitude", text="경도")
+        address_tree.pack(expand=True, fill="both")
+
+        def on_treeview_double_click(event):
+            item = address_tree.selection()[0]
+            values = address_tree.item(item, "values")
+            lat, lng = float(values[2]), float(values[3])
+            map_widget.set_position(lat, lng)
+            map_widget.set_zoom(18)  # Set default zoom level after double-click
+
+        address_tree.bind("<Double-1>", on_treeview_double_click)
+
+        def filter_pc_rooms():
+            keyword = search_entry.get()
+            for row in address_tree.get_children():
+                address_tree.delete(row)
+
+            for room in pc_rooms:
+                if keyword.lower() in room[0].lower():
+                    address_tree.insert("", "end", values=room)
+
+        sigun_nm = city_combobox.get()
+        if not sigun_nm:
+            messagebox.showwarning("Warning", "Please 도시 선택.")
+            return
+
+        pc_rooms = self.fetch_data(sigun_nm)
+        if not pc_rooms:
+            messagebox.showinfo("Info", "PC방이 없습니다 ㅠ.")
+            return
+
+        for room in pc_rooms:
+            address_tree.insert("", "end", values=room)
+
+        search_button = tk.Button(top_frame, text="검색", command=filter_pc_rooms)
+        search_button.pack(side=tk.LEFT, padx=5)
+
 
 if __name__ == "__main__":
     root = tk.Tk()
