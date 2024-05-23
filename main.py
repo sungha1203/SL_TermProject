@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import messagebox
 from PIL import Image, ImageTk
+import smtplib
+from email.mime.text import MIMEText
 import pygame
 import requests
 import io
@@ -317,56 +319,69 @@ class FC_GG_App:
         self.show_search_results_for_favorite(selected_favorite)
 
     def show_search_results_for_favorite(self, nickname):
-        for widget in self.right_frame.winfo_children():
-            widget.destroy()
+        ouid = get_ouid(nickname)
+        if ouid:
+            user_nickname, user_level = get_user_info(ouid)
+            match_ids = get_match_ids(ouid)
+            max_division_id = get_maxdivision(ouid)
 
-        result_text = f"닉네임: {nickname}"
-        result_label = tk.Label(self.right_frame, text=result_text, bg='white', font=("Helvetica", 30))
-        result_label.pack(anchor="center", pady=5)
+            division_data = get_division_data()
+            division_name = next(
+                (item['divisionName'] for item in division_data if item['divisionId'] == max_division_id),
+                "Unknown Division")
 
-        # Add buttons for user match history and transaction history
-        match_history_button = tk.Button(self.right_frame, text="유저의 매치 기록 조회", command=self.show_match_history, font=("Helvetica", 20))
-        match_history_button.pack(anchor="center", pady=10)
+            # 현재 사용자 정보를 저장
+            self.current_user_info = {
+                "nickname": user_nickname,
+                "level": user_level,
+                "division": division_name
+            }
+            for widget in self.right_frame.winfo_children():
+                widget.destroy()
 
-        transaction_history_button = tk.Button(self.right_frame, text="유저의 거래 기록 조회",
-                                               command=self.show_transaction_history, font=("Helvetica", 20))
-        transaction_history_button.pack(anchor="center", pady=10)
+            result_text = f"닉네임: {nickname}"
+            result_label = tk.Label(self.right_frame, text=result_text, bg='white', font=("Helvetica", 30))
+            result_label.pack(anchor="center", pady=5)
 
-        button_frame = tk.Frame(self.right_frame, bg='white')
-        button_frame.pack(anchor="center", pady=10)
+            # Add buttons for user match history and transaction history
+            match_history_button = tk.Button(self.right_frame, text="유저의 매치 기록 조회", command=self.show_match_history, font=("Helvetica", 20))
+            match_history_button.pack(anchor="center", pady=10)
 
-        self.telegram_image = Image.open("텔레그램.png")
-        self.telegram_photo = ImageTk.PhotoImage(self.telegram_image)
-        telegram_button = tk.Button(button_frame, image=self.telegram_photo, command=self.show_match_history,
-                                    bg='white')
-        telegram_button.pack(side="left", padx=20)
+            transaction_history_button = tk.Button(self.right_frame, text="유저의 거래 기록 조회",
+                                                   command=self.show_transaction_history, font=("Helvetica", 20))
+            transaction_history_button.pack(anchor="center", pady=10)
 
-        self.mail_image = Image.open("메일.png")
-        self.mail_photo = ImageTk.PhotoImage(self.mail_image)
-        mail_button = tk.Button(button_frame, image=self.mail_photo, command=self.send_email, bg='white')
-        mail_button.pack(side="left", padx=20)
+            button_frame = tk.Frame(self.right_frame, bg='white')
+            button_frame.pack(anchor="center", pady=10)
+
+            self.telegram_image = Image.open("텔레그램.png")
+            self.telegram_photo = ImageTk.PhotoImage(self.telegram_image)
+            telegram_button = tk.Button(button_frame, image=self.telegram_photo, command=self.show_match_history,
+                                        bg='white')
+            telegram_button.pack(side="left", padx=20)
+
+            self.mail_image = Image.open("메일.png")
+            self.mail_photo = ImageTk.PhotoImage(self.mail_image)
+            mail_button = tk.Button(button_frame, image=self.mail_photo, command=self.send_email, bg='white')
+            mail_button.pack(side="left", padx=20)
 
     def send_email(self):
         email_window = tk.Toplevel(self.root)
         email_window.title("이메일 보내기")
         email_window.geometry("400x200")
 
-        # Calculate the position to center the new window on the screen
-        self.root.update_idletasks()  # Update "requested size" from geometry manager
+        self.root.update_idletasks()
 
-        # Get the size and position of the main window
         main_width = self.root.winfo_width()
         main_height = self.root.winfo_height()
         main_x = self.root.winfo_x()
         main_y = self.root.winfo_y()
 
-        # Calculate the position of the new window
         window_width = 400
         window_height = 150
         x = main_x + (main_width // 2) - (window_width // 2)
         y = main_y + (main_height // 2) - (window_height // 2)
 
-        # Set the geometry of the new window
         email_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
         tk.Label(email_window, text="수신자 메일 주소를 입력해주세요", font=("Helvetica", 12)).pack(pady=5)
@@ -374,13 +389,33 @@ class FC_GG_App:
         recipient_entry.pack(fill="x", padx=10, pady=5)
 
         send_button = tk.Button(email_window, text="전송", font=("Helvetica", 12),
-                                command=lambda: self.send_email_action(recipient_entry))
+                                command=lambda: self.send_email_action(recipient_entry, email_window))
         send_button.pack(pady=10)
 
-    def send_email_action(self, recipient_entry):
+    def send_email_action(self, recipient_entry, email_window):
         recipient = recipient_entry.get()
-        messagebox.showinfo("이메일 전송", f"메일 주소: {recipient}\n이메일이 전송 되었습니다!")
-        # 여기에 실제 이메일 전송 코드를 추가할 수 있습니다.
+        sender = "hih20553@gmail.com"
+        subject = "이메일 전송 완료"
+
+        # 현재 사용자 정보 가져오기
+        if self.current_user_info:
+            body = (f"닉네임: {self.current_user_info['nickname']}\n"
+                    f"레벨: {self.current_user_info['level']}\n"
+                    f"최고 등급: {self.current_user_info['division']}\n\n")
+
+        msg = MIMEText(body)
+        msg['Subject'] = subject
+        msg['From'] = sender
+        msg['To'] = recipient
+
+        try:
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                server.login(sender, "zbqf ctvk ktku rfes")
+                server.sendmail(sender, recipient, msg.as_string())
+            messagebox.showinfo("이메일 전송", f"메일 주소: {recipient}\n이메일이 전송 되었습니다!")
+            email_window.destroy()
+        except Exception as e:
+            messagebox.showerror("이메일 전송 실패", str(e))
 
     def show_match_history(self):
         messagebox.showinfo("기능 미구현", "유저의 매치 기록 조회 기능은 아직 구현되지 않았습니다.")
@@ -416,7 +451,7 @@ class FC_GG_App:
                         frame = tk.Frame(self.results_frame, bg='white')
                         frame.pack(anchor="center", pady=5)
                         image_label = tk.Label(frame, image=photo, bg='white')
-                        image_label.image = photo  # Keep a reference to the image to avoid garbage collection
+                        image_label.image = photo
                         image_label.pack(side="left", padx=10)
 
                         # Add season icon if available
@@ -427,7 +462,7 @@ class FC_GG_App:
                                 season_image = Image.open(io.BytesIO(season_image_data))
                                 season_photo = ImageTk.PhotoImage(season_image)
                                 season_image_label = tk.Label(frame, image=season_photo, bg='white')
-                                season_image_label.image = season_photo  # Keep a reference to the image to avoid garbage collection
+                                season_image_label.image = season_photo
                                 season_image_label.pack(side="left", padx=10)
 
                         text_label = tk.Label(frame, text=f"Player Name: {player['name']}", bg='white',
@@ -438,7 +473,6 @@ class FC_GG_App:
                                         font=("Helvetica", 12))
                 result_label.pack(anchor="center", pady=5)
 
-            # 선수 검색 시에는 스크롤바를 보임
             self.results_scrollbar.pack(side="right", fill="y")
 
 
