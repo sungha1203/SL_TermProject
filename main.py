@@ -9,7 +9,7 @@ import time
 
 # API 키와 헤더 설정
 headers = {
-    "x-nxopen-api-key": "test_a1117976d21f0e110832cec871e43bd95a8b6510b740e366a06718fec6508af6efe8d04e6d233bd35cf2fabdeb93fb0d"
+    "x-nxopen-api-key": "test_1afb40fe1643062715cabee53b8c4aa9d7a211cfa2612f3d86f8a0f56af4eafbefe8d04e6d233bd35cf2fabdeb93fb0d"
 }
 
 def get_ouid(character_name):
@@ -133,11 +133,13 @@ class FC_GG_App:
         # Load images for buttons
         self.search_icon = Image.open("돋보기.png").convert("RGBA")
         self.favorite_icon = Image.open("별.png").convert("RGBA")
-        self.check_icon = Image.open("체크.png").convert("RGBA")
+        self.no_check_icon = Image.open("노체크.png").convert("RGBA")  # 기본 노체크 이미지
+        self.checked_icon = Image.open("체크.png").convert("RGBA")  # 체크된 이미지
 
         self.search_icon = ImageTk.PhotoImage(self.search_icon)
         self.favorite_icon = ImageTk.PhotoImage(self.favorite_icon)
-        self.check_icon = ImageTk.PhotoImage(self.check_icon)
+        self.no_check_icon = ImageTk.PhotoImage(self.no_check_icon)
+        self.checked_icon = ImageTk.PhotoImage(self.checked_icon)
 
         self.search_button = tk.Button(self.header_frame, text="검색  ", image=self.search_icon, compound="left",
                                        command=self.create_search_screen)
@@ -255,22 +257,30 @@ class FC_GG_App:
                 result_label = tk.Label(self.results_frame, text=result_text, bg='white', font=("Helvetica", 30))
 
                 # 중앙 정렬을 위해 라벨을 패킹할 때 anchor 옵션 사용
-                result_label.pack(anchor="center",padx = 150, pady=20)
+                result_label.pack(anchor="center", padx=150, pady=20)
+
+                is_favorite = user_nickname in self.favorites
+                check_icon = self.checked_icon if is_favorite else self.no_check_icon
 
                 if not self.check_button:
-                    self.check_button = tk.Button(self.search_result_frame, image=self.check_icon,
-                                                  command=lambda: self.add_to_favorites(user_nickname), bg='lightgrey')
+                    self.check_button = tk.Button(self.search_result_frame, image=check_icon,
+                                                  command=lambda: self.toggle_favorite(user_nickname), bg='light blue')
                     self.check_button.pack(side="right", padx=10)
+                else:
+                    self.check_button.config(image=check_icon, command=lambda: self.toggle_favorite(user_nickname))
 
                 # 닉네임 검색 시에는 스크롤바를 숨김
                 self.results_scrollbar.pack_forget()
 
-    def add_to_favorites(self, nickname):
-        if nickname not in self.favorites:
-            self.favorites.append(nickname)
-            messagebox.showinfo("즐겨찾기", f"{nickname} 닉네임이 즐겨찾기에 추가되었습니다.")
+    def toggle_favorite(self, nickname):
+        if nickname in self.favorites:
+            self.favorites.remove(nickname)
+            self.check_button.config(image=self.no_check_icon)
+            messagebox.showinfo("즐겨찾기", f"{nickname} 닉네임이 즐겨찾기에서 제거되었습니다.")
         else:
-            messagebox.showinfo("즐겨찾기", f"{nickname} 닉네임은 이미 즐겨찾기에 있습니다.")
+            self.favorites.append(nickname)
+            self.check_button.config(image=self.checked_icon)
+            messagebox.showinfo("즐겨찾기", f"{nickname} 닉네임이 즐겨찾기에 추가되었습니다.")
 
     def show_favorites_screen(self):
         self.clear_screen()
@@ -315,15 +325,65 @@ class FC_GG_App:
         result_label.pack(anchor="center", pady=5)
 
         # Add buttons for user match history and transaction history
-        match_history_button = tk.Button(self.right_frame, text="유저 매치 기록 조회", command=self.show_match_history, font=("Helvetica", 20))
+        match_history_button = tk.Button(self.right_frame, text="유저의 매치 기록 조회", command=self.show_match_history, font=("Helvetica", 20))
         match_history_button.pack(anchor="center", pady=10)
 
         transaction_history_button = tk.Button(self.right_frame, text="유저의 거래 기록 조회",
                                                command=self.show_transaction_history, font=("Helvetica", 20))
         transaction_history_button.pack(anchor="center", pady=10)
 
+        button_frame = tk.Frame(self.right_frame, bg='white')
+        button_frame.pack(anchor="center", pady=10)
+
+        self.telegram_image = Image.open("텔레그램.png")
+        self.telegram_photo = ImageTk.PhotoImage(self.telegram_image)
+        telegram_button = tk.Button(button_frame, image=self.telegram_photo, command=self.show_match_history,
+                                    bg='white')
+        telegram_button.pack(side="left", padx=20)
+
+        self.mail_image = Image.open("메일.png")
+        self.mail_photo = ImageTk.PhotoImage(self.mail_image)
+        mail_button = tk.Button(button_frame, image=self.mail_photo, command=self.send_email, bg='white')
+        mail_button.pack(side="left", padx=20)
+
+    def send_email(self):
+        email_window = tk.Toplevel(self.root)
+        email_window.title("이메일 보내기")
+        email_window.geometry("400x200")
+
+        # Calculate the position to center the new window on the screen
+        self.root.update_idletasks()  # Update "requested size" from geometry manager
+
+        # Get the size and position of the main window
+        main_width = self.root.winfo_width()
+        main_height = self.root.winfo_height()
+        main_x = self.root.winfo_x()
+        main_y = self.root.winfo_y()
+
+        # Calculate the position of the new window
+        window_width = 400
+        window_height = 150
+        x = main_x + (main_width // 2) - (window_width // 2)
+        y = main_y + (main_height // 2) - (window_height // 2)
+
+        # Set the geometry of the new window
+        email_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+
+        tk.Label(email_window, text="수신자 메일 주소를 입력해주세요", font=("Helvetica", 12)).pack(pady=5)
+        recipient_entry = tk.Entry(email_window, font=("Helvetica", 12))
+        recipient_entry.pack(fill="x", padx=10, pady=5)
+
+        send_button = tk.Button(email_window, text="전송", font=("Helvetica", 12),
+                                command=lambda: self.send_email_action(recipient_entry))
+        send_button.pack(pady=10)
+
+    def send_email_action(self, recipient_entry):
+        recipient = recipient_entry.get()
+        messagebox.showinfo("이메일 전송", f"메일 주소: {recipient}\n이메일이 전송 되었습니다!")
+        # 여기에 실제 이메일 전송 코드를 추가할 수 있습니다.
+
     def show_match_history(self):
-        messagebox.showinfo("기능 미구현", "유저 매치 기록 조회 기능은 아직 구현되지 않았습니다.")
+        messagebox.showinfo("기능 미구현", "유저의 매치 기록 조회 기능은 아직 구현되지 않았습니다.")
 
     def show_transaction_history(self):
         messagebox.showinfo("기능 미구현", "유저의 거래 기록 조회 기능은 아직 구현되지 않았습니다.")
@@ -407,8 +467,20 @@ class FC_GG_App:
     def open_logo_window(self):
         logo_window = tk.Toplevel(self.root)
         logo_window.title("만든 사람")
-        logo_window.geometry("300x70")  # Set window size to 800x800
-        info_label = tk.Label(logo_window, text="한국공학대학교\n2020180002 곽정민\n2020184038 황성하", font=("Helvetica", 12))
+
+        self.root.update_idletasks()
+        main_width = self.root.winfo_width()
+        main_height = self.root.winfo_height()
+        main_x = self.root.winfo_x()
+        main_y = self.root.winfo_y()
+
+        window_width = 500
+        window_height = 200
+        x = main_x + (main_width // 2) - (window_width // 2)
+        y = main_y + (main_height // 2) - (window_height // 2)
+        logo_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+
+        info_label = tk.Label(logo_window, text="한국공학대학교\n\n2020180002 곽정민\n2020184038 황성하", font=("Helvetica", 18))
         info_label.pack(expand=True, fill="both", padx=10, pady=10)
 
 if __name__ == "__main__":
