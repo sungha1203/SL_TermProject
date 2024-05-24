@@ -10,10 +10,12 @@ import json
 import time
 import tkintermapview  # Import the tkintermapview for map functionality
 import xml.etree.ElementTree as ET
+import os
+from PIL import ImageGrab
 
 # API 키와 헤더 설정
 headers = {
-    "x-nxopen-api-key": "test_1afb40fe1643062715cabee53b8c4aa9d7a211cfa2612f3d86f8a0f56af4eafbefe8d04e6d233bd35cf2fabdeb93fb0d"
+    "x-nxopen-api-key": "test_a1117976d21f0e110832cec871e43bd95a8b6510b740e366a06718fec6508af6efe8d04e6d233bd35cf2fabdeb93fb0d"
 }
 
 
@@ -134,9 +136,18 @@ class FC_GG_App:
                                     bg='light yellow')
         self.map_button.grid(row=0, column=2, padx=10, pady=10)
 
+        #스쿼드 메이커 버튼
+        self.squad_icon = Image.open("스쿼드메이커.png").convert("RGBA")
+        self.squad_icon = ImageTk.PhotoImage(self.squad_icon)
+
+        # Create map button
+        self.squad_button = tk.Button(self.header_frame, image=self.squad_icon, command=self.open_squad_window,
+                                    bg='light yellow')
+        self.squad_button.grid(row=0, column=3, padx=10, pady=10)
+
         # 시간 라벨 추가
         self.time_label = tk.Label(self.header_frame, font=("Helvetica", 16), bg='light yellow')
-        self.time_label.grid(row=0, column=3, padx=10, pady=10)
+        self.time_label.grid(row=0, column=4, padx=10, pady=10)
 
         # Load images for buttons
         self.search_icon = Image.open("돋보기.png").convert("RGBA")
@@ -151,11 +162,11 @@ class FC_GG_App:
 
         self.search_button = tk.Button(self.header_frame, text="검색  ", image=self.search_icon, compound="left",
                                        command=self.create_search_screen)
-        self.search_button.grid(row=0, column=4, padx=20, pady=20)
+        self.search_button.grid(row=0, column=5, padx=20, pady=20)
 
         self.favorites_button = tk.Button(self.header_frame, text="즐겨찾기  ", image=self.favorite_icon, compound="left",
                                           command=self.show_favorites_screen)
-        self.favorites_button.grid(row=0, column=5, padx=20, pady=20)
+        self.favorites_button.grid(row=0, column=6, padx=20, pady=20)
 
         self.content_frame = tk.Frame(self.root, bg='white')
         self.content_frame.pack(fill="both", expand=True)
@@ -501,6 +512,209 @@ class FC_GG_App:
     def open_map_window(self):
         self.initialize_map()
 
+    def open_squad_window(self):
+        squad_window = tk.Toplevel(self.root)
+        squad_window.title("스쿼드 메이커")
+        squad_window.geometry("1200x800")
+
+        top_frame = tk.Frame(squad_window)
+        top_frame.pack(side=tk.TOP, fill=tk.X)
+
+        label = tk.Label(top_frame, text="포메이션 선택", font=("Helvetica", 20))
+        label.pack(pady=10)
+
+        self.squad_combobox = ttk.Combobox(top_frame, values=["4-2-3-1", "4-4-2", "4-3-3"])
+        self.squad_combobox.pack(side=tk.TOP, padx=10)
+        self.squad_combobox.bind("<<ComboboxSelected>>", self.display_formation)
+
+        self.large_frame = tk.Frame(squad_window, bg='light gray')
+        self.large_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        save_button = tk.Button(squad_window, text="저장", command=self.save_squad_image)
+        save_button.place(relx=0.95, rely=0.05, anchor="ne")
+
+        self.root.after(100, self.load_and_display_image, self.large_frame, "축구장.png")
+
+        self.plus_image = Image.open("플러스.png")
+        self.plus_photo = ImageTk.PhotoImage(self.plus_image)
+        self.player_buttons = []
+
+    def save_squad_image(self):
+        x = self.large_frame.winfo_rootx()
+        y = self.large_frame.winfo_rooty()
+        width = self.large_frame.winfo_width()
+        height = self.large_frame.winfo_height()
+
+        # 스크린샷 찍기
+        image = ImageGrab.grab().crop((x, y, x + width, y + height))
+
+        # 파일 이름 생성
+        base_filename = "squad_image"
+        file_extension = ".png"
+        file_number = 1
+
+        while os.path.exists(f"{base_filename}{file_number}{file_extension}"):
+            file_number += 1
+
+        file_name = f"{base_filename}{file_number}{file_extension}"
+        image.save(file_name)
+        messagebox.showinfo("저장 완료", f"스쿼드 이미지가 {file_name}으로 저장되었습니다!")
+
+    def load_and_display_image(self, frame, image_path):
+        frame.update_idletasks()
+        frame_width = frame.winfo_width()
+        frame_height = frame.winfo_height()
+
+        # 이미지 로드 및 프레임 크기에 맞게 조정
+        image = Image.open(image_path)
+        image = image.resize((frame_width, frame_height), Image.Resampling.LANCZOS)
+        photo = ImageTk.PhotoImage(image)
+
+        # 이미지 라벨 생성 및 배치
+        image_label = tk.Label(frame, image=photo, bg='white')
+        image_label.image = photo  # 참조를 유지하여 이미지가 삭제되지 않도록 함
+        image_label.pack(fill=tk.BOTH, expand=True)
+
+    def open_player_search_window(self, pos_index):
+        search_window = tk.Toplevel(self.root)
+        search_window.title("선수 검색")
+        search_window.geometry("500x700")
+
+        tk.Label(search_window, text="선수 이름 검색:", font=("Helvetica", 12)).pack(pady=10)
+        search_entry = tk.Entry(search_window, font=("Helvetica", 12))
+        search_entry.pack(fill="x", padx=10, pady=5)
+
+        search_button = tk.Button(search_window, text="검색", font=("Helvetica", 12),
+                                  command=lambda: self.search_players(search_entry.get(), search_window, pos_index))
+        search_button.pack(pady=10)
+
+        self.search_result_frame = tk.Frame(search_window, bg='white')
+        self.search_result_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.search_result_canvas = tk.Canvas(self.search_result_frame, bg='white')
+        self.search_result_scrollbar = tk.Scrollbar(self.search_result_frame, orient="vertical",
+                                                    command=self.search_result_canvas.yview)
+        self.search_result_canvas.configure(yscrollcommand=self.search_result_scrollbar.set)
+
+        self.search_result_inner_frame = tk.Frame(self.search_result_canvas, bg='white')
+
+        self.search_result_canvas.create_window((0, 0), window=self.search_result_inner_frame, anchor="nw")
+        self.search_result_inner_frame.bind("<Configure>", lambda e: self.search_result_canvas.configure(
+            scrollregion=self.search_result_canvas.bbox("all")))
+
+        self.search_result_canvas.pack(side="left", fill="both", expand=True)
+        self.search_result_scrollbar.pack(side="right", fill="y")
+
+    def search_players(self, player_name, window, position):
+        if player_name:
+            matching_players = [player for player in self.spid_data if player_name.lower() in player['name'].lower()]
+
+            for widget in self.search_result_inner_frame.winfo_children():
+                widget.destroy()
+
+            if matching_players:
+                for player in matching_players:
+                    season_id = str(player['id'])[:3]
+                    season_image_url = next(
+                        (season['seasonImg'] for season in self.season_data if season['seasonId'] == int(season_id)),
+                        None)
+
+                    if season_image_url:
+                        response = requests.get(season_image_url)
+                        if response.status_code == 200:
+                            image_data = response.content
+                            image = Image.open(io.BytesIO(image_data))
+                            photo = ImageTk.PhotoImage(image)
+                            player_button = tk.Button(self.search_result_inner_frame, image=photo,
+                                                      command=lambda p=player: self.select_season(p, position, window),
+                                                      bg='white')
+                            player_button.image = photo
+                            player_button.pack(side="top", padx=10, pady=5)
+            else:
+                result_label = tk.Label(self.search_result_inner_frame, text="X", bg='white',
+                                        font=("Helvetica", 12))
+                result_label.pack(anchor="center", pady=5)
+        else:
+            messagebox.showwarning("경고", "선수 이름을 입력해주세요.")
+
+    def select_season(self, player, position, window):
+        player_image_url = f"https://fco.dn.nexoncdn.co.kr/live/externalAssets/common/playersAction/p{player['id']}.png"
+        response = requests.get(player_image_url)
+        if response.status_code == 200:
+            image_data = response.content
+            image = Image.open(io.BytesIO(image_data))
+            image = image.resize((100, 100), Image.Resampling.LANCZOS)
+            photo = ImageTk.PhotoImage(image)
+
+            button = self.player_buttons[position]
+            button.config(image=photo, command=lambda: self.open_player_search_window(position))
+            button.image = photo
+            window.destroy()
+        else:
+            messagebox.showerror("오류", "NEXON API에 등록된 이미지가 없어요ㅠㅠ.")
+
+    def select_player(self, player, position, window):
+        self.player_buttons[position].config(text=player['name'], image='', compound='center')
+        window.destroy()
+
+    def display_formation(self, event):
+        selected_formation = self.squad_combobox.get()
+
+        if selected_formation == "4-2-3-1":
+            positions = [
+                (0.5, 0.2),  # ST
+                (0.5, 0.4),  # CAM
+                (0.3, 0.4),  # LW
+                (0.7, 0.4),  # RW
+                (0.4, 0.6),  # CM
+                (0.6, 0.6),  # CM
+                (0.2, 0.8),  # LB
+                (0.8, 0.8),  # RB
+                (0.35, 0.8),  # CB
+                (0.65, 0.8),  # CB
+                (0.5, 0.9)  # GK
+            ]
+        elif selected_formation == "4-4-2":
+            positions = [
+                (0.3, 0.2),  # ST
+                (0.7, 0.2),  # ST
+                (0.2, 0.4),  # LM
+                (0.8, 0.4),  # RM
+                (0.4, 0.4),  # CM
+                (0.6, 0.4),  # CM
+                (0.2, 0.8),  # LB
+                (0.8, 0.8),  # RB
+                (0.35, 0.8),  # CB
+                (0.65, 0.8),  # CB
+                (0.5, 0.9)  # GK
+            ]
+        elif selected_formation == "4-3-3":
+            positions = [
+                (0.2, 0.2),  # LW
+                (0.5, 0.2),  # ST
+                (0.8, 0.2),  # RW
+                (0.35, 0.4),  # CM
+                (0.65, 0.4),  # CM
+                (0.5, 0.6),  # CM
+                (0.2, 0.8),  # LB
+                (0.8, 0.8),  # RB
+                (0.35, 0.8),  # CB
+                (0.65, 0.8),  # CB
+                (0.5, 0.9)  # GK
+            ]
+
+        # 기존 버튼 제거
+        for button in self.player_buttons:
+            button.destroy()
+
+        # 새로운 포지션에 버튼 배치
+        self.player_buttons = []
+        for i, (x, y) in enumerate(positions):
+            button = tk.Button(self.large_frame, image=self.plus_photo, bg='white',
+                               command=lambda pos=i: self.open_player_search_window(pos))
+            button.place(relx=x, rely=y, anchor="center")
+            self.player_buttons.append(button)
+
     def open_logo_window(self):
         logo_window = tk.Toplevel(self.root)
         logo_window.title("만든 사람")
@@ -523,7 +737,7 @@ class FC_GG_App:
     def initialize_map(self):
         # Create a new window for the map
         map_window = tk.Toplevel(self.root)
-        map_window.title("구글 맵")
+        map_window.title("지역별 PC방 찾기")
         map_window.geometry("1200x800")
 
         # 상단 프레임
