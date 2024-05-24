@@ -360,7 +360,6 @@ class FC_GG_App:
             result_label = tk.Label(self.right_frame, text=result_text, bg='white', font=("Helvetica", 30))
             result_label.pack(anchor="center", pady=5)
 
-            # Add buttons for user match history and transaction history
             match_history_button = tk.Button(self.right_frame, text="유저의 매치 기록 조회", command=self.show_match_history, font=("Helvetica", 20))
             match_history_button.pack(anchor="center", pady=10)
 
@@ -373,7 +372,7 @@ class FC_GG_App:
 
             self.telegram_image = Image.open("텔레그램.png")
             self.telegram_photo = ImageTk.PhotoImage(self.telegram_image)
-            telegram_button = tk.Button(button_frame, image=self.telegram_photo, command=self.show_match_history,
+            telegram_button = tk.Button(button_frame, image=self.telegram_photo, command=self.telegram_bot,
                                         bg='white')
             telegram_button.pack(side="left", padx=20)
 
@@ -436,6 +435,9 @@ class FC_GG_App:
 
     def show_match_history(self):
         messagebox.showinfo("기능 미구현", "유저의 매치 기록 조회 기능은 아직 구현되지 않았습니다.")
+
+    def telegram_bot(self):
+        messagebox.showinfo("기능 미구현", "텔레그램 기능은 아직 구현되지 않았습니다.")
 
     def show_transaction_history(self):
         messagebox.showinfo("기능 미구현", "유저의 거래 기록 조회 기능은 아직 구현되지 않았습니다.")
