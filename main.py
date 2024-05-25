@@ -8,93 +8,25 @@ import requests
 import io
 import json
 import time
-import tkintermapview  # Import the tkintermapview for map functionality
-import xml.etree.ElementTree as ET
 import os
 from PIL import ImageGrab
-
-# API 키와 헤더 설정
-headers = {
-    "x-nxopen-api-key": "test_a1117976d21f0e110832cec871e43bd95a8b6510b740e366a06718fec6508af6efe8d04e6d233bd35cf2fabdeb93fb0d"
-}
-
-
-# Functions for API interactions
-def get_ouid(character_name):
-    userouidURL = "https://open.api.nexon.com/fconline/v1/id?nickname=" + character_name
-    response = requests.get(userouidURL, headers=headers)
-    response_json = response.json()
-    return response_json.get('ouid')
-
-
-def get_user_info(ouid):
-    userinfoURL = 'https://open.api.nexon.com/fconline/v1/user/basic?ouid=' + ouid
-    response = requests.get(userinfoURL, headers=headers)
-    response_json = response.json()
-    return response_json.get('nickname'), response_json.get('level')
-
-
-def get_match_ids(ouid, matchtype='50', offset='0', limit='20'):
-    usermatchURL = ('https://open.api.nexon.com/fconline/v1/user/match?ouid=' + ouid +
-                    '&matchtype=' + matchtype + '&offset=' + offset + '&limit=' + limit)
-    response = requests.get(usermatchURL, headers=headers)
-    return response.json()
-
-
-def get_match_details(match_ids):
-    match_details = []
-    for matchid in match_ids:
-        userdetailinfoURL = 'https://open.api.nexon.com/fconline/v1/match-detail?matchid=' + matchid
-        response = requests.get(userdetailinfoURL, headers=headers)
-        match_detail = response.json()
-        match_details.append(match_detail)
-    return match_details
-
-
-def get_maxdivision(ouid):
-    MaxDivisionURL = 'https://open.api.nexon.com/fconline/v1/user/maxdivision?ouid=' + ouid
-    response = requests.get(MaxDivisionURL, headers=headers)
-    response_json = response.json()
-
-    if isinstance(response_json, list) and len(response_json) > 0:
-        return response_json[0].get('division')
-    else:
-        return None
-
-
-def get_spid_metadata():
-    url = "https://open.api.nexon.com/static/fconline/meta/spid.json"
-    response = requests.get(url)
-    return response.json()
-
-
-def get_division_data():
-    url = "https://open.api.nexon.com/static/fconline/meta/division.json"
-    response = requests.get(url)
-    return response.json()
-
-
-def get_season_metadata():
-    url = "https://open.api.nexon.com/static/fconline/meta/seasonid.json"
-    response = requests.get(url)
-    return response.json()
-
+from api_utils import get_ouid, get_user_info, get_match_ids, get_match_details, get_maxdivision, get_spid_metadata, get_division_data, get_season_metadata
+import map_utils
 
 class FC_GG_App:
     def __init__(self, root):
         self.root = root
         self.root.title("FC.GG")
-        self.root.geometry("1000x700")  # 윈도우 크기 설정
+        self.root.geometry("1000x700")
         self.season_data = get_season_metadata()
 
         self.favorites = []
 
-        # Initialize pygame mixer
         pygame.mixer.init()
-        self.bgm_file = "FIFASOUND.mp3"  # Replace with your actual BGM file
+        self.bgm_file = "FIFASOUND.mp3"
         pygame.mixer.music.load(self.bgm_file)
-        pygame.mixer.music.set_volume(0.5)  # Set the volume to 50%
-        pygame.mixer.music.play(-1)  # Play the BGM in a loop
+        pygame.mixer.music.set_volume(0.5)
+        pygame.mixer.music.play(-1)
 
         self.header_frame = tk.Frame(self.root, bg='light yellow')
         self.header_frame.pack(side="top", fill="x")
@@ -105,18 +37,15 @@ class FC_GG_App:
         self.header_frame.grid_columnconfigure(3, weight=1)
         self.header_frame.grid_columnconfigure(4, weight=1)
 
-        # 로고 이미지 로드
-        self.logo_image = Image.open("FCGG.png")
+        self.logo_image = Image.open("photo/FCGG.png")
         self.logo_photo = ImageTk.PhotoImage(self.logo_image)
 
-        # 로고 라벨 추가+
         self.logo_button = tk.Button(self.header_frame, image=self.logo_photo, command=self.open_logo_window,
                                      bg='light yellow')
         self.logo_button.grid(row=0, column=0, padx=0, pady=1)
 
-        # Create sound toggle button
-        self.sound_on_image = Image.open("1.png").convert("RGBA")
-        self.sound_off_image = Image.open("2.png").convert("RGBA")
+        self.sound_on_image = Image.open("photo/1.png").convert("RGBA")
+        self.sound_off_image = Image.open("photo/2.png").convert("RGBA")
 
         self.sound_on_image = ImageTk.PhotoImage(self.sound_on_image)
         self.sound_off_image = ImageTk.PhotoImage(self.sound_off_image)
@@ -127,33 +56,27 @@ class FC_GG_App:
 
         self.is_sound_on = True
 
-        # Load map button image
-        self.map_icon = Image.open("map.png").convert("RGBA")
+        self.map_icon = Image.open("photo/map.png").convert("RGBA")
         self.map_icon = ImageTk.PhotoImage(self.map_icon)
 
-        # Create map button
         self.map_button = tk.Button(self.header_frame, image=self.map_icon, command=self.open_map_window,
                                     bg='light yellow')
         self.map_button.grid(row=0, column=2, padx=10, pady=10)
 
-        #스쿼드 메이커 버튼
-        self.squad_icon = Image.open("스쿼드메이커.png").convert("RGBA")
+        self.squad_icon = Image.open("photo/스쿼드메이커.png").convert("RGBA")
         self.squad_icon = ImageTk.PhotoImage(self.squad_icon)
 
-        # Create map button
         self.squad_button = tk.Button(self.header_frame, image=self.squad_icon, command=self.open_squad_window,
                                     bg='light yellow')
         self.squad_button.grid(row=0, column=3, padx=10, pady=10)
 
-        # 시간 라벨 추가
         self.time_label = tk.Label(self.header_frame, font=("Helvetica", 16), bg='light yellow')
         self.time_label.grid(row=0, column=4, padx=10, pady=10)
 
-        # Load images for buttons
-        self.search_icon = Image.open("돋보기.png").convert("RGBA")
-        self.favorite_icon = Image.open("별.png").convert("RGBA")
-        self.no_check_icon = Image.open("노체크.png").convert("RGBA")  # 기본 노체크 이미지
-        self.checked_icon = Image.open("체크.png").convert("RGBA")  # 체크된 이미지
+        self.search_icon = Image.open("photo/돋보기.png").convert("RGBA")
+        self.favorite_icon = Image.open("photo/별.png").convert("RGBA")
+        self.no_check_icon = Image.open("photo/노체크.png").convert("RGBA")
+        self.checked_icon = Image.open("photo/체크.png").convert("RGBA")
 
         self.search_icon = ImageTk.PhotoImage(self.search_icon)
         self.favorite_icon = ImageTk.PhotoImage(self.favorite_icon)
@@ -171,10 +94,9 @@ class FC_GG_App:
         self.content_frame = tk.Frame(self.root, bg='white')
         self.content_frame.pack(fill="both", expand=True)
 
-        # Load SPID data
         self.spid_data = get_spid_metadata()
 
-        self.check_button = None  # Initialize check_button here
+        self.check_button = None
 
         self.create_search_screen()
 
@@ -212,7 +134,7 @@ class FC_GG_App:
         right_frame = tk.Frame(self.content_frame, bg='white', bd=2, relief="groove", width=600, height=frame_height)
         right_frame.pack(side="right", fill="both", expand=True, padx=20, pady=20)
 
-        left_frame.grid_propagate(False)  # 프레임 크기 고정
+        left_frame.grid_propagate(False)
         left_frame.columnconfigure(0, weight=1)
         left_frame.rowconfigure([0, 1, 2, 3], weight=1)
 
@@ -228,15 +150,13 @@ class FC_GG_App:
         self.player_search_button = tk.Button(left_frame, text="검색", command=self.show_player_results)
         self.player_search_button.grid(row=2, column=2, padx=5, pady=5, sticky="s")
 
-        # 오른쪽 프레임: 검색 결과
-        self.search_result_frame = tk.Frame(right_frame, bg='light blue', height=40)  # Height fixed for consistency
+        self.search_result_frame = tk.Frame(right_frame, bg='light blue', height=40)
         self.search_result_frame.pack(fill="x")
 
         self.search_result_label = tk.Label(self.search_result_frame, text="검색 결과", font=("Helvetica", 16, "bold"),
                                             bg='light blue')
         self.search_result_label.pack(anchor="center", pady=10)
 
-        # 검색 결과를 표시할 캔버스와 스크롤바
         self.results_canvas = tk.Canvas(right_frame, bg='white')
         self.results_scrollbar = tk.Scrollbar(right_frame, orient="vertical", command=self.results_canvas.yview)
         self.results_canvas.pack(side="left", fill="both", expand=True)
@@ -246,7 +166,6 @@ class FC_GG_App:
         self.results_canvas.create_window((0, 0), window=self.results_frame, anchor="center")
         self.results_frame.bind("<Configure>", self.on_frame_configure)
 
-        # 스크롤바를 기본적으로 숨김
         self.results_scrollbar.pack_forget()
 
     def on_frame_configure(self, event):
@@ -267,15 +186,12 @@ class FC_GG_App:
                     (item['divisionName'] for item in division_data if item['divisionId'] == max_division_id),
                     "Unknown Division")
 
-                # 검색 결과 화면 업데이트
                 self.clear_search_results()
                 self.search_result_label.pack(anchor="center", pady=10)
 
-                # 결과값들을 표시하는 라벨
                 result_text = f"닉네임: {user_nickname}\n\nLevel: {user_level}\n\n최고 등급: {division_name}"
                 result_label = tk.Label(self.results_frame, text=result_text, bg='white', font=("Helvetica", 30))
 
-                # 중앙 정렬을 위해 라벨을 패킹할 때 anchor 옵션 사용
                 result_label.pack(anchor="center", padx=150, pady=20)
 
                 is_favorite = user_nickname in self.favorites
@@ -288,7 +204,6 @@ class FC_GG_App:
                 else:
                     self.check_button.config(image=check_icon, command=lambda: self.toggle_favorite(user_nickname))
 
-                # 닉네임 검색 시에는 스크롤바를 숨김
                 self.results_scrollbar.pack_forget()
 
     def toggle_favorite(self, nickname):
@@ -323,7 +238,7 @@ class FC_GG_App:
         tk.Label(favorites_frame, text="즐겨찾기 목록", font=("Helvetica", 16, "bold"), bg='light blue').pack(anchor="center",
                                                                                                         pady=10)
 
-        self.favorites_listbox = tk.Listbox(favorites_frame, height=15)  # Height adjusted for larger entries
+        self.favorites_listbox = tk.Listbox(favorites_frame, height=15)
         self.favorites_listbox.pack(fill="both", expand=True)
 
         for favorite in self.favorites:
@@ -347,7 +262,6 @@ class FC_GG_App:
                 (item['divisionName'] for item in division_data if item['divisionId'] == max_division_id),
                 "Unknown Division")
 
-            # 현재 사용자 정보를 저장
             self.current_user_info = {
                 "nickname": user_nickname,
                 "level": user_level,
@@ -370,13 +284,13 @@ class FC_GG_App:
             button_frame = tk.Frame(self.right_frame, bg='white')
             button_frame.pack(anchor="center", pady=10)
 
-            self.telegram_image = Image.open("텔레그램.png")
+            self.telegram_image = Image.open("photo/텔레그램.png")
             self.telegram_photo = ImageTk.PhotoImage(self.telegram_image)
             telegram_button = tk.Button(button_frame, image=self.telegram_photo, command=self.telegram_bot,
                                         bg='white')
             telegram_button.pack(side="left", padx=20)
 
-            self.mail_image = Image.open("메일.png")
+            self.mail_image = Image.open("photo/메일.png")
             self.mail_photo = ImageTk.PhotoImage(self.mail_image)
             mail_button = tk.Button(button_frame, image=self.mail_photo, command=self.send_email, bg='white')
             mail_button.pack(side="left", padx=20)
@@ -413,7 +327,6 @@ class FC_GG_App:
         sender = "hih20553@gmail.com"
         subject = "이메일 전송 완료"
 
-        # 현재 사용자 정보 가져오기
         if self.current_user_info:
             body = (f"닉네임: {self.current_user_info['nickname']}\n"
                     f"레벨: {self.current_user_info['level']}\n"
@@ -445,18 +358,14 @@ class FC_GG_App:
     def show_player_results(self):
         player_name = self.player_entry.get().lower()
         if player_name:
-            # 선수 이름 검색
             matching_players = [player for player in self.spid_data if player_name in player['name'].lower()]
 
-            # 검색 결과 화면 업데이트
             self.clear_search_results()
             self.search_result_label.pack(anchor="center", pady=10)
 
             if matching_players:
                 for player in matching_players:
-                    # Extract the season ID from the SPID
                     season_id = str(player['id'])[:3]
-                    # Find the season image URL
                     season_image_url = next(
                         (season['seasonImg'] for season in self.season_data if season['seasonId'] == int(season_id)),
                         None)
@@ -473,7 +382,6 @@ class FC_GG_App:
                         image_label.image = photo
                         image_label.pack(side="left", padx=10)
 
-                        # Add season icon if available
                         if season_image_url:
                             season_response = requests.get(season_image_url)
                             if season_response.status_code == 200:
@@ -512,7 +420,7 @@ class FC_GG_App:
         self.root.after(1000, self.update_time)
 
     def open_map_window(self):
-        self.initialize_map()
+        map_utils.initialize_map(self.root, self)
 
     def open_squad_window(self):
         squad_window = tk.Toplevel(self.root)
@@ -535,9 +443,9 @@ class FC_GG_App:
         save_button = tk.Button(squad_window, text="저장", command=self.save_squad_image)
         save_button.place(relx=0.95, rely=0.05, anchor="ne")
 
-        self.root.after(100, self.load_and_display_image, self.large_frame, "축구장.png")
+        self.root.after(100, self.load_and_display_image, self.large_frame, "photo/축구장.png")
 
-        self.plus_image = Image.open("플러스.png")
+        self.plus_image = Image.open("photo/플러스.png")
         self.plus_photo = ImageTk.PhotoImage(self.plus_image)
         self.player_buttons = []
 
@@ -547,10 +455,8 @@ class FC_GG_App:
         width = self.large_frame.winfo_width()
         height = self.large_frame.winfo_height()
 
-        # 스크린샷 찍기
         image = ImageGrab.grab().crop((x, y, x + width, y + height))
 
-        # 파일 이름 생성
         base_filename = "squad_image"
         file_extension = ".png"
         file_number = 1
@@ -567,14 +473,12 @@ class FC_GG_App:
         frame_width = frame.winfo_width()
         frame_height = frame.winfo_height()
 
-        # 이미지 로드 및 프레임 크기에 맞게 조정
         image = Image.open(image_path)
         image = image.resize((frame_width, frame_height), Image.Resampling.LANCZOS)
         photo = ImageTk.PhotoImage(image)
 
-        # 이미지 라벨 생성 및 배치
         image_label = tk.Label(frame, image=photo, bg='white')
-        image_label.image = photo  # 참조를 유지하여 이미지가 삭제되지 않도록 함
+        image_label.image = photo
         image_label.pack(fill=tk.BOTH, expand=True)
 
     def open_player_search_window(self, pos_index):
@@ -664,52 +568,50 @@ class FC_GG_App:
 
         if selected_formation == "4-2-3-1":
             positions = [
-                (0.5, 0.2),  # ST
-                (0.5, 0.4),  # CAM
-                (0.3, 0.4),  # LW
-                (0.7, 0.4),  # RW
-                (0.4, 0.6),  # CM
-                (0.6, 0.6),  # CM
-                (0.2, 0.8),  # LB
-                (0.8, 0.8),  # RB
-                (0.35, 0.8),  # CB
-                (0.65, 0.8),  # CB
-                (0.5, 0.9)  # GK
+                (0.5, 0.2),
+                (0.5, 0.4),
+                (0.3, 0.4),
+                (0.7, 0.4),
+                (0.4, 0.6),
+                (0.6, 0.6),
+                (0.2, 0.8),
+                (0.8, 0.8),
+                (0.35, 0.8),
+                (0.65, 0.8),
+                (0.5, 0.9)
             ]
         elif selected_formation == "4-4-2":
             positions = [
-                (0.3, 0.2),  # ST
-                (0.7, 0.2),  # ST
-                (0.2, 0.4),  # LM
-                (0.8, 0.4),  # RM
-                (0.4, 0.4),  # CM
-                (0.6, 0.4),  # CM
-                (0.2, 0.8),  # LB
-                (0.8, 0.8),  # RB
-                (0.35, 0.8),  # CB
-                (0.65, 0.8),  # CB
-                (0.5, 0.9)  # GK
+                (0.3, 0.2),
+                (0.7, 0.2),
+                (0.2, 0.4),
+                (0.8, 0.4),
+                (0.4, 0.4),
+                (0.6, 0.4),
+                (0.2, 0.8),
+                (0.8, 0.8),
+                (0.35, 0.8),
+                (0.65, 0.8),
+                (0.5, 0.9)
             ]
         elif selected_formation == "4-3-3":
             positions = [
-                (0.2, 0.2),  # LW
-                (0.5, 0.2),  # ST
-                (0.8, 0.2),  # RW
-                (0.35, 0.4),  # CM
-                (0.65, 0.4),  # CM
-                (0.5, 0.6),  # CM
-                (0.2, 0.8),  # LB
-                (0.8, 0.8),  # RB
-                (0.35, 0.8),  # CB
-                (0.65, 0.8),  # CB
-                (0.5, 0.9)  # GK
+                (0.2, 0.2),
+                (0.5, 0.2),
+                (0.8, 0.2),
+                (0.35, 0.4),
+                (0.65, 0.4),
+                (0.5, 0.6),
+                (0.2, 0.8),
+                (0.8, 0.8),
+                (0.35, 0.8),
+                (0.65, 0.8),
+                (0.5, 0.9)
             ]
 
-        # 기존 버튼 제거
         for button in self.player_buttons:
             button.destroy()
 
-        # 새로운 포지션에 버튼 배치
         self.player_buttons = []
         for i, (x, y) in enumerate(positions):
             button = tk.Button(self.large_frame, image=self.plus_photo, bg='white',
@@ -735,159 +637,6 @@ class FC_GG_App:
 
         info_label = tk.Label(logo_window, text="한국공학대학교\n\n2020180002 곽정민\n2020184038 황성하", font=("Helvetica", 18))
         info_label.pack(expand=True, fill="both", padx=10, pady=10)
-
-    def initialize_map(self):
-        # Create a new window for the map
-        map_window = tk.Toplevel(self.root)
-        map_window.title("지역별 PC방 찾기")
-        map_window.geometry("1200x800")
-
-        # 상단 프레임
-        top_frame = tk.Frame(map_window)
-        top_frame.pack(side=tk.TOP, fill=tk.X, pady=10)
-
-        # 도시 선택 콤보박스
-        tk.Label(top_frame, text="도시 선택:").pack(side=tk.LEFT, padx=10)
-        city_combobox = ttk.Combobox(top_frame, values=[
-            "시흥시", "안산시", "수원시", "고양시", "성남시", "부천시", "광명시", "과천시", "광주시",
-            "구리시", "군포시", "김포시", "남양주시", "동두천시", "문경시", "목포시", "양주시",
-            "여주시", "연천군", "오산시", "용인시", "의왕시", "의정부시", "이천시", "파주시",
-            "평택시", "포천시", "하남시", "화성시"
-        ])
-        city_combobox.pack(side=tk.LEFT, padx=10)
-
-        # 조회 버튼
-        search_button = tk.Button(top_frame, text="검색",
-                                  command=lambda: self.show_pc_rooms(map_widget, city_combobox))
-        search_button.pack(side=tk.LEFT, padx=10)
-
-        # 지도 보기 버튼
-        address_button = tk.Button(top_frame, text="피시방 찾기",
-                                   command=lambda: self.open_address_window(map_widget, city_combobox))
-        address_button.pack(side=tk.LEFT, padx=10)
-
-        # 지도 위젯
-        map_widget = tkintermapview.TkinterMapView(map_window, width=1200, height=700, corner_radius=0)
-        map_widget.set_position(37.339496586083, 126.73287520461)  # 초기 위치 설정
-        map_widget.set_zoom(18)  # 초기 줌 레벨 설정
-        map_widget.pack(expand=True, fill="both")
-
-    def fetch_data(self, sigun_nm):
-        # 요청 파라미터
-        api_url = "https://openapi.gg.go.kr/GameSoftwaresFacilityProvis"
-        api_key = "9c52941f1f09418cb908e5388454c307"
-
-        params = {
-            "KEY": api_key,
-            "Type": "xml",  # 응답 형식: xml
-            "pIndex": 1,  # 페이지 위치
-            "pSize": 1000,  # 페이지당 요청 수
-            "SIGUN_NM": sigun_nm,  # 시군명
-        }
-
-        response = requests.get(api_url, params=params)
-        if response.status_code == 200:
-            # XML 파싱
-            root = ET.fromstring(response.content)
-            items = root.findall(".//row")
-            result = []
-            for item in items:
-                if item.findtext("BSN_STATE_NM") == "운영중":
-                    name = item.findtext("BIZPLC_NM")  # 업체명
-                    address = item.findtext("REFINE_ROADNM_ADDR")  # 도로명 주소
-                    lat = item.findtext("REFINE_WGS84_LAT")  # 위도
-                    lng = item.findtext("REFINE_WGS84_LOGT")  # 경도
-                    result.append((name, address, lat, lng))
-            return result
-        else:
-            messagebox.showerror("Error", f"API request failed: {response.status_code}")
-            return []
-
-    def show_pc_rooms(self, map_widget, city_combobox):
-        sigun_nm = city_combobox.get()
-        if not sigun_nm:
-            messagebox.showwarning("Warning", "Please select a city.")
-            return
-
-        pc_rooms = self.fetch_data(sigun_nm)
-        if not pc_rooms:
-            messagebox.showinfo("Info", "No operational PC rooms found in the selected city.")
-            return
-
-        # Find the first PC room to set the map position to that city
-        if pc_rooms:
-            first_pc_room = pc_rooms[0]
-            lat = float(first_pc_room[2])
-            lng = float(first_pc_room[3])
-            map_widget.set_position(lat, lng)
-            map_widget.set_zoom(18)  # Set default zoom level
-
-        map_widget.delete_all_marker()
-
-        for room in pc_rooms:
-            try:
-                lat = float(room[2])
-                lng = float(room[3])
-                map_widget.set_marker(lat, lng, text=room[0])
-            except (ValueError, TypeError):
-                continue
-
-    def open_address_window(self, map_widget, city_combobox):
-        address_window = tk.Toplevel(self.root)
-        address_window.title("PC Room Addresses")
-        address_window.geometry("800x500")
-
-        top_frame = tk.Frame(address_window)
-        top_frame.pack(side=tk.TOP, fill=tk.X, pady=10)
-
-        search_label = tk.Label(top_frame, text="PC방 이름 검색:")
-        search_label.pack(side=tk.LEFT, padx=5)
-
-        search_entry = tk.Entry(top_frame)
-        search_entry.pack(side=tk.LEFT, padx=5)
-
-        address_tree = ttk.Treeview(address_window, columns=("Name", "Address", "Latitude", "Longitude"),
-                                    show="headings")
-        address_tree.heading("Name", text="이름")
-        address_tree.heading("Address", text="주소")
-        address_tree.heading("Latitude", text="위도")
-        address_tree.heading("Longitude", text="경도")
-        address_tree.pack(expand=True, fill="both")
-
-        def on_treeview_double_click(event):
-            item = address_tree.selection()[0]
-            values = address_tree.item(item, "values")
-            lat, lng = float(values[2]), float(values[3])
-            map_widget.set_position(lat, lng)
-            map_widget.set_zoom(18)  # Set default zoom level after double-click
-
-        address_tree.bind("<Double-1>", on_treeview_double_click)
-
-        def filter_pc_rooms():
-            keyword = search_entry.get()
-            for row in address_tree.get_children():
-                address_tree.delete(row)
-
-            for room in pc_rooms:
-                if keyword.lower() in room[0].lower():
-                    address_tree.insert("", "end", values=room)
-
-        sigun_nm = city_combobox.get()
-        if not sigun_nm:
-            messagebox.showwarning("Warning", "Please 도시 선택.")
-            return
-
-        pc_rooms = self.fetch_data(sigun_nm)
-        if not pc_rooms:
-            messagebox.showinfo("Info", "PC방이 없습니다 ㅠ.")
-            return
-
-        for room in pc_rooms:
-            address_tree.insert("", "end", values=room)
-
-        search_button = tk.Button(top_frame, text="검색", command=filter_pc_rooms)
-        search_button.pack(side=tk.LEFT, padx=5)
-
 
 if __name__ == "__main__":
     root = tk.Tk()
