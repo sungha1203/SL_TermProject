@@ -25,7 +25,7 @@ class FC_GG_App:
         pygame.mixer.init()
         self.bgm_file = "FIFASOUND.mp3"
         pygame.mixer.music.load(self.bgm_file)
-        pygame.mixer.music.set_volume(0.5)
+        pygame.mixer.music.set_volume(0.3)
         pygame.mixer.music.play(-1)
 
         self.header_frame = tk.Frame(self.root, bg='light yellow')
@@ -347,7 +347,67 @@ class FC_GG_App:
             messagebox.showerror("이메일 전송 실패", str(e))
 
     def show_match_history(self):
-        messagebox.showinfo("기능 미구현", "유저의 매치 기록 조회 기능은 아직 구현되지 않았습니다.")
+        ouid = get_ouid(self.current_user_info['nickname'])
+        match_ids = get_match_ids(ouid)
+        match_details = get_match_details(match_ids)
+
+        match_window = tk.Toplevel(self.root)
+        match_window.title("매치 기록 조회")
+        match_window.geometry("600x400")
+
+        match_listbox = tk.Listbox(match_window, width=80, height=20)
+        match_listbox.pack(side="left", fill="both", expand=True)
+
+        scrollbar = tk.Scrollbar(match_window, orient="vertical", command=match_listbox.yview)
+        scrollbar.pack(side="right", fill="y")
+
+        match_listbox.config(yscrollcommand=scrollbar.set)
+
+        for match in match_details:
+            myInfo = next(info for info in match['matchInfo'] if info['ouid'] == ouid)
+            enemyInfo = next(info for info in match['matchInfo'] if info['ouid'] != ouid)
+
+            # Get enemy user info
+            enemy_ouid = enemyInfo['ouid']
+            enemyname, enemylevel = get_user_info(enemy_ouid)
+
+            matchtime = match['matchDate']
+            result = myInfo['matchDetail']['matchResult']
+            total_pass = myInfo['pass']['passTry']
+            pass_success = myInfo['pass']['passSuccess']
+            effective_shoot_total = myInfo['shoot']['effectiveShootTotal']
+            pass_success_rate = (pass_success / total_pass) * 100 if total_pass > 0 else 0
+            match_summary = f"시간: {matchtime}, 상대 닉네임: {enemyname}, 결과: {result}, 패스 성공률: {pass_success_rate:.2f}%, 유효 슈팅: {effective_shoot_total}\n\n+"
+            match_listbox.insert(tk.END, match_summary)
+
+        match_listbox.bind('<Double-1>',
+                           lambda event: self.show_match_detail(event, match_details, match_listbox, ouid))
+
+    def show_match_detail(self, event, match_details, match_listbox, ouid):
+        selected_index = match_listbox.curselection()[0]
+        selected_match = match_details[selected_index]
+        match_detail = next(info for info in match_details[selected_index]['matchInfo'] if info['ouid'] == ouid)
+
+        detail_window = tk.Toplevel(self.root)
+        detail_window.title("매치 상세 정보")
+        detail_window.geometry("400x300")
+
+        match_time = selected_match['matchDate']
+        result = match_detail['matchDetail']['matchResult']
+        pass_success = match_detail['pass']['passSuccess']
+        effective_shoot_total = match_detail['shoot']['effectiveShootTotal']
+
+        time_label = tk.Label(detail_window, text=f"시간: {match_time}")
+        time_label.pack(pady=10)
+
+        result_label = tk.Label(detail_window, text=f"Result: {result}")
+        result_label.pack(pady=10)
+
+        pass_success_label = tk.Label(detail_window, text=f"Pass Success: {pass_success}")
+        pass_success_label.pack(pady=10)
+
+        shoot_label = tk.Label(detail_window, text=f"Effective Shoot: {effective_shoot_total}")
+        shoot_label.pack(pady=10)
 
     def telegram_bot(self):
         messagebox.showinfo("기능 미구현", "텔레그램 기능은 아직 구현되지 않았습니다.")

@@ -19,7 +19,7 @@ def get_user_info(ouid):
     return response_json.get('nickname'), response_json.get('level')
 
 
-def get_match_ids(ouid, matchtype='50', offset='0', limit='20'):
+def get_match_ids(ouid, matchtype='50', offset='0', limit='10'):
     usermatchURL = ('https://open.api.nexon.com/fconline/v1/user/match?ouid=' + ouid +
                     '&matchtype=' + matchtype + '&offset=' + offset + '&limit=' + limit)
     response = requests.get(usermatchURL, headers=headers)
