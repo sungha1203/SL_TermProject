@@ -12,6 +12,14 @@ import os
 from PIL import ImageGrab
 from api_utils import get_ouid, get_user_info, get_match_ids, get_match_details, get_maxdivision, get_spid_metadata, get_division_data, get_season_metadata
 import map_utils
+import matplotlib.pyplot as plt
+from matplotlib import font_manager, rc
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+# 한글 폰트 설정
+font_path = 'C:/Windows/Fonts/malgun.ttf'  # 시스템에 설치된 한글 폰트 경로로 변경 필요
+font_name = font_manager.FontProperties(fname=font_path).get_name()
+rc('font', family=font_name)
 
 class FC_GG_App:
     def __init__(self, root):
@@ -386,28 +394,88 @@ class FC_GG_App:
     def show_match_detail(self, event, match_details, match_listbox, ouid):
         selected_index = match_listbox.curselection()[0]
         selected_match = match_details[selected_index]
-        match_detail = next(info for info in match_details[selected_index]['matchInfo'] if info['ouid'] == ouid)
+        match_detail = next(info for info in selected_match['matchInfo'] if info['ouid'] == ouid)
+        opponent_detail = next(info for info in selected_match['matchInfo'] if info['ouid'] != ouid)
 
         detail_window = tk.Toplevel(self.root)
         detail_window.title("매치 상세 정보")
-        detail_window.geometry("400x300")
+        detail_window.geometry("1200x800")
+
+        canvas = tk.Canvas(detail_window)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        scrollbar = tk.Scrollbar(detail_window, orient="vertical", command=canvas.yview)
+        scrollbar.pack(side=tk.RIGHT, fill="y")
+
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        frame = tk.Frame(canvas)
+        canvas.create_window((0, 0), window=frame, anchor="nw")
 
         match_time = selected_match['matchDate']
         result = match_detail['matchDetail']['matchResult']
-        pass_success = match_detail['pass']['passSuccess']
-        effective_shoot_total = match_detail['shoot']['effectiveShootTotal']
+        pass_success = match_detail['pass']['passSuccess'] or 0
+        total_pass = match_detail['pass']['passTry'] or 0
+        effective_shoot_total = match_detail['shoot']['effectiveShootTotal'] or 0
+        shoot_total = match_detail['shoot']['shootTotal'] or 0
+        pass_success_rate = (pass_success / total_pass) * 100 if total_pass > 0 else 0
+        shoot_success_rate = (effective_shoot_total / shoot_total) * 100 if shoot_total > 0 else 0
+        fouls = match_detail['matchDetail']['foul'] or 0
 
-        time_label = tk.Label(detail_window, text=f"시간: {match_time}")
+        opponent_pass_success = opponent_detail['pass']['passSuccess'] or 0
+        opponent_total_pass = opponent_detail['pass']['passTry'] or 0
+        opponent_effective_shoot_total = opponent_detail['shoot']['effectiveShootTotal'] or 0
+        opponent_shoot_total = opponent_detail['shoot']['shootTotal'] or 0
+        opponent_pass_success_rate = (
+                                                 opponent_pass_success / opponent_total_pass) * 100 if opponent_total_pass > 0 else 0
+        opponent_shoot_success_rate = (
+                                                  opponent_effective_shoot_total / opponent_shoot_total) * 100 if opponent_shoot_total > 0 else 0
+        opponent_fouls = opponent_detail['matchDetail']['foul'] or 0
+
+        labels = ["슛", "유효슛", "슛 성공률", "패스 성공률", "파울"]
+        my_values = [shoot_total, effective_shoot_total, shoot_success_rate, pass_success_rate, fouls]
+        opponent_values = [opponent_shoot_total, opponent_effective_shoot_total, opponent_shoot_success_rate,
+                           opponent_pass_success_rate, opponent_fouls]
+
+        time_label = tk.Label(frame, text=f"시간: {match_time}")
         time_label.pack(pady=10)
 
-        result_label = tk.Label(detail_window, text=f"Result: {result}")
+        result_label = tk.Label(frame, text=f"Result: {result}")
         result_label.pack(pady=10)
 
-        pass_success_label = tk.Label(detail_window, text=f"Pass Success: {pass_success}")
-        pass_success_label.pack(pady=10)
+        my_team_label = tk.Label(frame, text=f"우리팀: {match_detail['nickname']}", font=("Helvetica", 16))
+        my_team_label.pack(side="left", padx=10, pady=10)
 
-        shoot_label = tk.Label(detail_window, text=f"Effective Shoot: {effective_shoot_total}")
-        shoot_label.pack(pady=10)
+        opponent_team_label = tk.Label(frame, text=f"상대팀: {opponent_detail['nickname']}", font=("Helvetica", 16))
+        opponent_team_label.pack(side="right", padx=10, pady=10)
+
+        table_frame = tk.Frame(frame)
+        table_frame.pack()
+
+        fig, axs = plt.subplots(len(labels), 2, figsize=(8, 10))
+        bar_width = 0.1  # 막대그래프 두께 조절
+
+        for i, label in enumerate(labels):
+            axs[i, 0].barh([label], [my_values[i]], color='#4CAF50', height=bar_width)
+            axs[i, 0].set_xlim(0, max(max(my_values), max(opponent_values)) + 1)
+            axs[i, 0].set_yticks([])  # Remove y-axis labels for left bars
+            axs[i, 0].text(my_values[i] + 0.5, 0, f"{my_values[i]:.1f}", va='center')
+
+            axs[i, 1].barh([label], [opponent_values[i]], color='#FF5733', height=bar_width)
+            axs[i, 1].set_xlim(0, max(max(my_values), max(opponent_values)) + 1)
+            axs[i, 1].set_yticks([])  # Remove y-axis labels for right bars
+            axs[i, 1].text(opponent_values[i] + 0.5, 0, f"{opponent_values[i]:.1f}", va='center')
+            axs[i, 1].invert_xaxis()
+
+        for ax, label in zip(axs[:, 0], labels):
+            ax.set_ylabel(label, labelpad=15)  # Add the label in the middle
+
+        fig.tight_layout()
+
+        canvas_agg = FigureCanvasTkAgg(fig, master=frame)
+        canvas_agg.draw()
+        canvas_agg.get_tk_widget().pack(pady=20)
 
     def telegram_bot(self):
         messagebox.showinfo("기능 미구현", "텔레그램 기능은 아직 구현되지 않았습니다.")
