@@ -2,7 +2,7 @@ import requests
 import xml.etree.ElementTree as ET
 
 headers = {
-    "x-nxopen-api-key": "test_1afb40fe1643062715cabee53b8c4aa9ee9b63d1681179d0fb5b094f52c349a8efe8d04e6d233bd35cf2fabdeb93fb0d"
+    "x-nxopen-api-key": "test_a1117976d21f0e110832cec871e43bd95a8b6510b740e366a06718fec6508af6efe8d04e6d233bd35cf2fabdeb93fb0d"
 }
 
 def get_ouid(character_name):

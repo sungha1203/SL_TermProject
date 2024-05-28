@@ -75,7 +75,7 @@ class FC_GG_App:
         self.squad_icon = ImageTk.PhotoImage(self.squad_icon)
 
         self.squad_button = tk.Button(self.header_frame, image=self.squad_icon, command=self.open_squad_window,
-                                    bg='light yellow')
+                                      bg='light yellow')
         self.squad_button.grid(row=0, column=3, padx=10, pady=10)
 
         self.time_label = tk.Label(self.header_frame, font=("Helvetica", 16), bg='light yellow')
@@ -108,8 +108,34 @@ class FC_GG_App:
 
         self.create_search_screen()
 
+        self.after_id = None
         self.update_time()
 
+        # Bind the close event to stop the timer and music
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+    def on_closing(self):
+        if self.after_id is not None:
+            self.root.after_cancel(self.after_id)
+        pygame.mixer.music.stop()  # Stop the music
+        pygame.mixer.quit()  # Quit pygame mixer
+        self.root.destroy()
+
+    def toggle_sound(self):
+        if self.is_sound_on:
+            pygame.mixer.music.pause()
+            self.sound_button.config(image=self.sound_off_image)
+        else:
+            pygame.mixer.music.unpause()
+            self.sound_button.config(image=self.sound_on_image)
+        self.is_sound_on = not self.is_sound_on
+
+    def update_time(self):
+        if not self.root.winfo_exists():  # Check if the root window exists
+            return
+        now = time.strftime("%Y년 %m월 %d일\n%H시  %M분  %S초", time.localtime(time.time() + 0 * 3600))
+        self.time_label.config(text=now)
+        self.after_id = self.root.after(1000, self.update_time)
     def toggle_sound(self):
         if self.is_sound_on:
             pygame.mixer.music.pause()
@@ -304,23 +330,8 @@ class FC_GG_App:
             mail_button.pack(side="left", padx=20)
 
     def send_email(self):
-        email_window = tk.Toplevel(self.root)
-        email_window.title("이메일 보내기")
-        email_window.geometry("400x200")
-
-        self.root.update_idletasks()
-
-        main_width = self.root.winfo_width()
-        main_height = self.root.winfo_height()
-        main_x = self.root.winfo_x()
-        main_y = self.root.winfo_y()
-
-        window_width = 400
-        window_height = 150
-        x = main_x + (main_width // 2) - (window_width // 2)
-        y = main_y + (main_height // 2) - (window_height // 2)
-
-        email_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        email_window = tk.Frame(self.content_frame, bg='white')
+        email_window.pack(fill="both", expand=True)
 
         tk.Label(email_window, text="수신자 메일 주소를 입력해주세요", font=("Helvetica", 12)).pack(pady=5)
         recipient_entry = tk.Entry(email_window, font=("Helvetica", 12))
@@ -415,23 +426,23 @@ class FC_GG_App:
 
         match_time = selected_match['matchDate']
         result = match_detail['matchDetail']['matchResult']
-        pass_success = match_detail['pass']['passSuccess'] or 0
-        total_pass = match_detail['pass']['passTry'] or 0
-        effective_shoot_total = match_detail['shoot']['effectiveShootTotal'] or 0
-        shoot_total = match_detail['shoot']['shootTotal'] or 0
+        pass_success = match_detail['pass']['passSuccess']
+        total_pass = match_detail['pass']['passTry']
+        effective_shoot_total = match_detail['shoot']['effectiveShootTotal']
+        shoot_total = match_detail['shoot']['shootTotal']
         pass_success_rate = (pass_success / total_pass) * 100 if total_pass > 0 else 0
         shoot_success_rate = (effective_shoot_total / shoot_total) * 100 if shoot_total > 0 else 0
-        fouls = match_detail['matchDetail']['foul'] or 0
+        fouls = match_detail['matchDetail']['foul']
 
-        opponent_pass_success = opponent_detail['pass']['passSuccess'] or 0
-        opponent_total_pass = opponent_detail['pass']['passTry'] or 0
-        opponent_effective_shoot_total = opponent_detail['shoot']['effectiveShootTotal'] or 0
-        opponent_shoot_total = opponent_detail['shoot']['shootTotal'] or 0
+        opponent_pass_success = opponent_detail['pass']['passSuccess']
+        opponent_total_pass = opponent_detail['pass']['passTry']
+        opponent_effective_shoot_total = opponent_detail['shoot']['effectiveShootTotal']
+        opponent_shoot_total = opponent_detail['shoot']['shootTotal']
         opponent_pass_success_rate = (
-                                                 opponent_pass_success / opponent_total_pass) * 100 if opponent_total_pass > 0 else 0
+                                             opponent_pass_success / opponent_total_pass) * 100 if opponent_total_pass > 0 else 0
         opponent_shoot_success_rate = (
-                                                  opponent_effective_shoot_total / opponent_shoot_total) * 100 if opponent_shoot_total > 0 else 0
-        opponent_fouls = opponent_detail['matchDetail']['foul'] or 0
+                                              opponent_effective_shoot_total / opponent_shoot_total) * 100 if opponent_shoot_total > 0 else 0
+        opponent_fouls = opponent_detail['matchDetail']['foul']
 
         labels = ["슛", "유효슛", "슛 성공률", "패스 성공률", "파울"]
         my_values = [shoot_total, effective_shoot_total, shoot_success_rate, pass_success_rate, fouls]
@@ -551,11 +562,11 @@ class FC_GG_App:
         map_utils.initialize_map(self.root, self)
 
     def open_squad_window(self):
-        squad_window = tk.Toplevel(self.root)
-        squad_window.title("스쿼드 메이커")
-        squad_window.geometry("1200x800")
+        # Clear the main content frame
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
 
-        top_frame = tk.Frame(squad_window)
+        top_frame = tk.Frame(self.content_frame)
         top_frame.pack(side=tk.TOP, fill=tk.X)
 
         label = tk.Label(top_frame, text="포메이션 선택", font=("Helvetica", 20))
@@ -565,10 +576,10 @@ class FC_GG_App:
         self.squad_combobox.pack(side=tk.TOP, padx=10)
         self.squad_combobox.bind("<<ComboboxSelected>>", self.display_formation)
 
-        self.large_frame = tk.Frame(squad_window, bg='light gray')
+        self.large_frame = tk.Frame(self.content_frame, bg='light gray')
         self.large_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        save_button = tk.Button(squad_window, text="저장", command=self.save_squad_image)
+        save_button = tk.Button(self.content_frame, text="저장", command=self.save_squad_image)
         save_button.place(relx=0.95, rely=0.05, anchor="ne")
 
         self.root.after(100, self.load_and_display_image, self.large_frame, "photo/축구장.png")
@@ -748,20 +759,8 @@ class FC_GG_App:
             self.player_buttons.append(button)
 
     def open_logo_window(self):
-        logo_window = tk.Toplevel(self.root)
-        logo_window.title("만든 사람")
-
-        self.root.update_idletasks()
-        main_width = self.root.winfo_width()
-        main_height = self.root.winfo_height()
-        main_x = self.root.winfo_x()
-        main_y = self.root.winfo_y()
-
-        window_width = 500
-        window_height = 200
-        x = main_x + (main_width // 2) - (window_width // 2)
-        y = main_y + (main_height // 2) - (window_height // 2)
-        logo_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        logo_window = tk.Frame(self.content_frame, bg='white')
+        logo_window.pack(fill="both", expand=True)
 
         info_label = tk.Label(logo_window, text="한국공학대학교\n\n2020180002 곽정민\n2020184038 황성하", font=("Helvetica", 18))
         info_label.pack(expand=True, fill="both", padx=10, pady=10)
