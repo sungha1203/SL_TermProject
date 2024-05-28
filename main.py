@@ -444,7 +444,7 @@ class FC_GG_App:
         result_label = tk.Label(frame, text=f"Result: {result}")
         result_label.pack(pady=10)
 
-        my_team_label = tk.Label(frame, text=f"우리팀: {match_detail['nickname']}", font=("Helvetica", 16))
+        my_team_label = tk.Label(frame, text=f"나: {match_detail['nickname']}", font=("Helvetica", 16))
         my_team_label.pack(side="left", padx=10, pady=10)
 
         opponent_team_label = tk.Label(frame, text=f"상대팀: {opponent_detail['nickname']}", font=("Helvetica", 16))
