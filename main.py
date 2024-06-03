@@ -318,10 +318,6 @@ class FC_GG_App:
                                              font=("Helvetica", 20))
             match_history_button.pack(anchor="center", pady=10)
 
-            transaction_history_button = tk.Button(self.right_frame, text="유저의 거래 기록 조회",
-                                                   command=self.show_transaction_history, font=("Helvetica", 20))
-            transaction_history_button.pack(anchor="center", pady=10)
-
             button_frame = tk.Frame(self.right_frame, bg='white')
             button_frame.pack(anchor="center", pady=10)
 
