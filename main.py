@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 from PIL import Image, ImageTk
 import smtplib
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import pygame
 import requests
 import io
@@ -15,11 +16,16 @@ import map_utils
 import matplotlib.pyplot as plt
 from matplotlib import font_manager, rc
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import telepot
+
 
 # 한글 폰트 설정
 font_path = 'C:/Windows/Fonts/malgun.ttf'  # 시스템에 설치된 한글 폰트 경로로 변경 필요
 font_name = font_manager.FontProperties(fname=font_path).get_name()
 rc('font', family=font_name)
+
+TELEGRAM_TOKEN = '7387907257:AAF-78s9KfSbhhbsrQBMM2f48DWBpS8R6jk'  # 텔레그램 봇 토큰 입력
+TELEGRAM_CHAT_ID = '7354650350'  # 텔레그램 채팅 ID 입력
 
 class FC_GG_App:
     def __init__(self, root):
@@ -114,6 +120,14 @@ class FC_GG_App:
         # Bind the close event to stop the timer and music
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
+        # Initialize the bot
+        self.bot = telepot.Bot(TELEGRAM_TOKEN)
+        self.telegram_chat_id = TELEGRAM_CHAT_ID
+
+
+    def send_telegram_message(self, message):
+        self.bot.sendMessage(self.telegram_chat_id, message)
+
     def on_closing(self):
         if self.after_id is not None:
             self.root.after_cancel(self.after_id)
@@ -136,14 +150,6 @@ class FC_GG_App:
         now = time.strftime("%Y년 %m월 %d일\n%H시  %M분  %S초", time.localtime(time.time() + 0 * 3600))
         self.time_label.config(text=now)
         self.after_id = self.root.after(1000, self.update_time)
-    def toggle_sound(self):
-        if self.is_sound_on:
-            pygame.mixer.music.pause()
-            self.sound_button.config(image=self.sound_off_image)
-        else:
-            pygame.mixer.music.unpause()
-            self.sound_button.config(image=self.sound_on_image)
-        self.is_sound_on = not self.is_sound_on
 
     def update_button_colors(self, active_button):
         inactive_color = "lightgrey"
@@ -308,7 +314,8 @@ class FC_GG_App:
             result_label = tk.Label(self.right_frame, text=result_text, bg='white', font=("Helvetica", 30))
             result_label.pack(anchor="center", pady=5)
 
-            match_history_button = tk.Button(self.right_frame, text="유저의 매치 기록 조회", command=self.show_match_history, font=("Helvetica", 20))
+            match_history_button = tk.Button(self.right_frame, text="유저의 매치 기록 조회", command=self.show_match_history,
+                                             font=("Helvetica", 20))
             match_history_button.pack(anchor="center", pady=10)
 
             transaction_history_button = tk.Button(self.right_frame, text="유저의 거래 기록 조회",
@@ -320,8 +327,7 @@ class FC_GG_App:
 
             self.telegram_image = Image.open("photo/텔레그램.png")
             self.telegram_photo = ImageTk.PhotoImage(self.telegram_image)
-            telegram_button = tk.Button(button_frame, image=self.telegram_photo, command=self.telegram_bot,
-                                        bg='white')
+            telegram_button = tk.Button(button_frame, image=self.telegram_photo, command=self.telegram_bot, bg='white')
             telegram_button.pack(side="left", padx=20)
 
             self.mail_image = Image.open("photo/메일.png")
@@ -330,8 +336,23 @@ class FC_GG_App:
             mail_button.pack(side="left", padx=20)
 
     def send_email(self):
-        email_window = tk.Frame(self.content_frame, bg='white')
-        email_window.pack(fill="both", expand=True)
+        email_window = tk.Toplevel(self.root)
+        email_window.title("이메일 보내기")
+        email_window.geometry("400x200")
+
+        self.root.update_idletasks()
+
+        main_width = self.root.winfo_width()
+        main_height = self.root.winfo_height()
+        main_x = self.root.winfo_x()
+        main_y = self.root.winfo_y()
+
+        window_width = 400
+        window_height = 150
+        x = main_x + (main_width // 2) - (window_width // 2)
+        y = main_y + (main_height // 2) - (window_height // 2)
+
+        email_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
         tk.Label(email_window, text="수신자 메일 주소를 입력해주세요", font=("Helvetica", 12)).pack(pady=5)
         recipient_entry = tk.Entry(email_window, font=("Helvetica", 12))
@@ -351,10 +372,13 @@ class FC_GG_App:
                     f"레벨: {self.current_user_info['level']}\n"
                     f"최고 등급: {self.current_user_info['division']}\n\n")
 
-        msg = MIMEText(body)
+        match_history_text = self.get_match_history_text()
+
+        msg = MIMEMultipart()
         msg['Subject'] = subject
         msg['From'] = sender
         msg['To'] = recipient
+        msg.attach(MIMEText(body + match_history_text, 'plain'))
 
         try:
             with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
@@ -364,6 +388,44 @@ class FC_GG_App:
             email_window.destroy()
         except Exception as e:
             messagebox.showerror("이메일 전송 실패", str(e))
+
+    def telegram_bot(self):
+        if self.current_user_info:
+            message = (f"닉네임: {self.current_user_info['nickname']}\n"
+                       f"레벨: {self.current_user_info['level']}\n"
+                       f"최고 등급: {self.current_user_info['division']}\n\n")
+
+            match_history_text = self.get_match_history_text()
+            full_message = message + match_history_text
+
+            max_message_length = 4096
+            for i in range(0, len(full_message), max_message_length):
+                part_message = full_message[i:i + max_message_length]
+                self.bot.sendMessage(self.telegram_chat_id, part_message)
+
+    def get_match_history_text(self):
+        ouid = get_ouid(self.current_user_info['nickname'])
+        match_ids = get_match_ids(ouid)
+        match_details = get_match_details(match_ids)
+
+        match_history_text = ""
+        for match in match_details[:10]:  # 최근 10경기만 포함
+            myInfo = next(info for info in match['matchInfo'] if info['ouid'] == ouid)
+            enemyInfo = next(info for info in match['matchInfo'] if info['ouid'] != ouid)
+
+            enemy_ouid = enemyInfo['ouid']
+            enemyname, enemylevel = get_user_info(enemy_ouid)
+
+            matchtime = match['matchDate']
+            result = myInfo['matchDetail']['matchResult']
+            total_pass = myInfo['pass']['passTry']
+            pass_success = myInfo['pass']['passSuccess']
+            effective_shoot_total = myInfo['shoot']['effectiveShootTotal']
+            pass_success_rate = (pass_success / total_pass) * 100 if total_pass > 0 else 0
+            match_summary = (f"시간: {matchtime}, 상대 닉네임: {enemyname}, 결과: {result}, "
+                             f"패스 성공률: {pass_success_rate:.2f}%, 유효 슈팅: {effective_shoot_total}\n")
+            match_history_text += match_summary
+        return match_history_text
 
     def show_match_history(self):
         ouid = get_ouid(self.current_user_info['nickname'])
@@ -488,8 +550,6 @@ class FC_GG_App:
         canvas_agg.draw()
         canvas_agg.get_tk_widget().pack(pady=20)
 
-    def telegram_bot(self):
-        messagebox.showinfo("기능 미구현", "텔레그램 기능은 아직 구현되지 않았습니다.")
 
     def show_transaction_history(self):
         messagebox.showinfo("기능 미구현", "유저의 거래 기록 조회 기능은 아직 구현되지 않았습니다.")
@@ -553,20 +613,15 @@ class FC_GG_App:
             self.check_button.pack_forget()
             self.check_button = None
 
-    def update_time(self):
-        now = time.strftime("%Y년 %m월 %d일\n%H시  %M분  %S초", time.localtime(time.time() + 0 * 3600))
-        self.time_label.config(text=now)
-        self.root.after(1000, self.update_time)
-
     def open_map_window(self):
         map_utils.initialize_map(self.root, self)
 
     def open_squad_window(self):
-        # Clear the main content frame
-        for widget in self.content_frame.winfo_children():
-            widget.destroy()
+        squad_window = tk.Toplevel(self.root)
+        squad_window.title("스쿼드 메이커")
+        squad_window.geometry("1000x700")
 
-        top_frame = tk.Frame(self.content_frame)
+        top_frame = tk.Frame(squad_window)
         top_frame.pack(side=tk.TOP, fill=tk.X)
 
         label = tk.Label(top_frame, text="포메이션 선택", font=("Helvetica", 20))
@@ -576,10 +631,10 @@ class FC_GG_App:
         self.squad_combobox.pack(side=tk.TOP, padx=10)
         self.squad_combobox.bind("<<ComboboxSelected>>", self.display_formation)
 
-        self.large_frame = tk.Frame(self.content_frame, bg='light gray')
+        self.large_frame = tk.Frame(squad_window, bg='light gray')
         self.large_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        save_button = tk.Button(self.content_frame, text="저장", command=self.save_squad_image)
+        save_button = tk.Button(squad_window, text="저장", command=self.save_squad_image)
         save_button.place(relx=0.95, rely=0.05, anchor="ne")
 
         self.root.after(100, self.load_and_display_image, self.large_frame, "photo/축구장.png")
@@ -759,8 +814,10 @@ class FC_GG_App:
             self.player_buttons.append(button)
 
     def open_logo_window(self):
-        logo_window = tk.Frame(self.content_frame, bg='white')
-        logo_window.pack(fill="both", expand=True)
+        logo_window = tk.Toplevel(self.root)
+        logo_window.title("로고 정보")
+        logo_window.geometry("300x200")
+        logo_window.configure(bg='white')
 
         info_label = tk.Label(logo_window, text="한국공학대학교\n\n2020180002 곽정민\n2020184038 황성하", font=("Helvetica", 18))
         info_label.pack(expand=True, fill="both", padx=10, pady=10)
