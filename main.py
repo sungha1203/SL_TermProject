@@ -1,3 +1,4 @@
+import spam
 import tkinter as tk
 from tkinter import ttk, messagebox
 from PIL import Image, ImageTk
@@ -17,7 +18,7 @@ import matplotlib.pyplot as plt
 from matplotlib import font_manager, rc
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import telepot
-
+from telepot.loop import MessageLoop
 
 # 한글 폰트 설정
 font_path = 'C:/Windows/Fonts/malgun.ttf'  # 시스템에 설치된 한글 폰트 경로로 변경 필요
@@ -26,6 +27,7 @@ rc('font', family=font_name)
 
 TELEGRAM_TOKEN = '7387907257:AAF-78s9KfSbhhbsrQBMM2f48DWBpS8R6jk'  # 텔레그램 봇 토큰 입력
 TELEGRAM_CHAT_ID = '7354650350'  # 텔레그램 채팅 ID 입력
+
 
 class FC_GG_App:
     def __init__(self, root):
@@ -124,7 +126,42 @@ class FC_GG_App:
         self.bot = telepot.Bot(TELEGRAM_TOKEN)
         self.telegram_chat_id = TELEGRAM_CHAT_ID
 
+        # Start message loop for the bot
+        MessageLoop(self.bot, self.handle_telegram_message).run_as_thread()
 
+    def handle_telegram_message(self, msg):
+        content_type, chat_type, chat_id = telepot.glance(msg)
+        if content_type == 'text':
+            nickname = msg['text']
+            ouid = get_ouid(nickname)  # C 함수 호출
+            if ouid:
+                user_nickname, user_level = get_user_info(ouid)
+                max_division_id = get_maxdivision(ouid)
+                division_data = get_division_data()
+                division_name = next(
+                    (item['divisionName'] for item in division_data if item['divisionId'] == max_division_id),
+                    "Unknown Division")
+                match_history_text = self.get_match_history_text(nickname)
+                message = (f"닉네임: {user_nickname}\n레벨: {user_level}\n최고 등급: {division_name}\n\n" + match_history_text)
+                self.bot.sendMessage(chat_id, message)
+            else:
+                self.bot.sendMessage(chat_id, "유저 정보를 찾을 수 없습니다.")
+
+    def get_user_info_by_name(self, name):
+        ouid = get_ouid(name)
+        if ouid:
+            user_nickname, user_level = get_user_info(ouid)
+            max_division_id = get_maxdivision(ouid)
+            division_data = get_division_data()
+            division_name = next(
+                (item['divisionName'] for item in division_data if item['divisionId'] == max_division_id),
+                "Unknown Division")
+            return {
+                "nickname": user_nickname,
+                "level": user_level,
+                "division": division_name
+            }
+        return None
     def send_telegram_message(self, message):
         self.bot.sendMessage(self.telegram_chat_id, message)
 
@@ -294,7 +331,6 @@ class FC_GG_App:
         ouid = get_ouid(nickname)
         if ouid:
             user_nickname, user_level = get_user_info(ouid)
-            match_ids = get_match_ids(ouid)
             max_division_id = get_maxdivision(ouid)
 
             division_data = get_division_data()
@@ -327,7 +363,11 @@ class FC_GG_App:
 
             self.telegram_image = Image.open("photo/텔레그램.png")
             self.telegram_photo = ImageTk.PhotoImage(self.telegram_image)
-            telegram_button = tk.Button(button_frame, image=self.telegram_photo, command=self.telegram_bot, bg='white')
+            telegram_button = tk.Button(button_frame, image=self.telegram_photo,
+                                        command=lambda: self.send_telegram_message(
+                                            f"닉네임: {nickname}\n레벨: {user_level}\n최고 등급: {division_name}\n\n" + self.get_match_history_text(
+                                                nickname)),
+                                        bg='white')
             telegram_button.pack(side="left", padx=20)
 
             self.mail_image = Image.open("photo/메일.png")
@@ -372,39 +412,36 @@ class FC_GG_App:
                     f"레벨: {self.current_user_info['level']}\n"
                     f"최고 등급: {self.current_user_info['division']}\n\n")
 
-        match_history_text = self.get_match_history_text()
+            # nickname 인자를 추가하여 get_match_history_text 호출
+            match_history_text = self.get_match_history_text(self.current_user_info['nickname'])
 
-        msg = MIMEMultipart()
-        msg['Subject'] = subject
-        msg['From'] = sender
-        msg['To'] = recipient
-        msg.attach(MIMEText(body + match_history_text, 'plain'))
+            msg = MIMEMultipart()
+            msg['Subject'] = subject
+            msg['From'] = sender
+            msg['To'] = recipient
+            msg.attach(MIMEText(body + match_history_text, 'plain'))
 
-        try:
-            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-                server.login(sender, "zbqf ctvk ktku rfes")
-                server.sendmail(sender, recipient, msg.as_string())
-            messagebox.showinfo("이메일 전송", f"메일 주소: {recipient}\n이메일이 전송 되었습니다!")
-            email_window.destroy()
-        except Exception as e:
-            messagebox.showerror("이메일 전송 실패", str(e))
+            try:
+                with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                    server.login(sender, "zbqf ctvk ktku rfes")
+                    server.sendmail(sender, recipient, msg.as_string())
+                messagebox.showinfo("이메일 전송", f"메일 주소: {recipient}\n이메일이 전송 되었습니다!")
+                email_window.destroy()
+            except Exception as e:
+                messagebox.showerror("이메일 전송 실패", str(e))
 
     def telegram_bot(self):
         if self.current_user_info:
+            nickname = self.current_user_info['nickname']
             message = (f"닉네임: {self.current_user_info['nickname']}\n"
                        f"레벨: {self.current_user_info['level']}\n"
                        f"최고 등급: {self.current_user_info['division']}\n\n")
+            match_history_text = self.get_match_history_text(nickname)
+            message += match_history_text
+            self.bot.sendMessage(self.telegram_chat_id, message)
 
-            match_history_text = self.get_match_history_text()
-            full_message = message + match_history_text
-
-            max_message_length = 4096
-            for i in range(0, len(full_message), max_message_length):
-                part_message = full_message[i:i + max_message_length]
-                self.bot.sendMessage(self.telegram_chat_id, part_message)
-
-    def get_match_history_text(self):
-        ouid = get_ouid(self.current_user_info['nickname'])
+    def get_match_history_text(self, nickname):
+        ouid = get_ouid(nickname)
         match_ids = get_match_ids(ouid)
         match_details = get_match_details(match_ids)
 
@@ -421,7 +458,7 @@ class FC_GG_App:
             total_pass = myInfo['pass']['passTry']
             pass_success = myInfo['pass']['passSuccess']
             effective_shoot_total = myInfo['shoot']['effectiveShootTotal']
-            pass_success_rate = (pass_success / total_pass) * 100 if total_pass > 0 else 0
+            pass_success_rate = spam.divide(pass_success, total_pass) * 100 if total_pass > 0 else 0
             match_summary = (f"시간: {matchtime}, 상대 닉네임: {enemyname}, 결과: {result}, "
                              f"패스 성공률: {pass_success_rate:.2f}%, 유효 슈팅: {effective_shoot_total}\n")
             match_history_text += match_summary
@@ -457,7 +494,7 @@ class FC_GG_App:
             total_pass = myInfo['pass']['passTry']
             pass_success = myInfo['pass']['passSuccess']
             effective_shoot_total = myInfo['shoot']['effectiveShootTotal']
-            pass_success_rate = (pass_success / total_pass) * 100 if total_pass > 0 else 0
+            pass_success_rate = spam.divide(pass_success, total_pass) * 100 if total_pass > 0 else 0
             match_summary = f"시간: {matchtime}, 상대 닉네임: {enemyname}, 결과: {result}, 패스 성공률: {pass_success_rate:.2f}%, 유효 슈팅: {effective_shoot_total}\n\n+"
             match_listbox.insert(tk.END, match_summary)
 
@@ -489,21 +526,21 @@ class FC_GG_App:
         match_time = selected_match['matchDate']
         result = match_detail['matchDetail']['matchResult']
         pass_success = match_detail['pass']['passSuccess']
-        total_pass = match_detail['pass']['passTry']
+        total_pass = match_detail['pass']['passTry'] or 0  # Handle None
         effective_shoot_total = match_detail['shoot']['effectiveShootTotal']
-        shoot_total = match_detail['shoot']['shootTotal']
-        pass_success_rate = (pass_success / total_pass) * 100 if total_pass > 0 else 0
-        shoot_success_rate = (effective_shoot_total / shoot_total) * 100 if shoot_total > 0 else 0
+        shoot_total = match_detail['shoot']['shootTotal'] or 0  # Handle None
+        pass_success_rate = spam.divide(pass_success, total_pass) * 100 if total_pass > 0 else 0
+        shoot_success_rate = spam.divide(effective_shoot_total, shoot_total) * 100 if shoot_total > 0 else 0
         fouls = match_detail['matchDetail']['foul']
 
         opponent_pass_success = opponent_detail['pass']['passSuccess']
-        opponent_total_pass = opponent_detail['pass']['passTry']
+        opponent_total_pass = opponent_detail['pass']['passTry'] or 0  # Handle None
         opponent_effective_shoot_total = opponent_detail['shoot']['effectiveShootTotal']
-        opponent_shoot_total = opponent_detail['shoot']['shootTotal']
-        opponent_pass_success_rate = (
-                                             opponent_pass_success / opponent_total_pass) * 100 if opponent_total_pass > 0 else 0
-        opponent_shoot_success_rate = (
-                                              opponent_effective_shoot_total / opponent_shoot_total) * 100 if opponent_shoot_total > 0 else 0
+        opponent_shoot_total = opponent_detail['shoot']['shootTotal'] or 0  # Handle None
+        opponent_pass_success_rate = spam.divide(opponent_pass_success,
+                                                 opponent_total_pass) * 100 if opponent_total_pass > 0 else 0
+        opponent_shoot_success_rate = spam.divide(opponent_effective_shoot_total,
+                                                  opponent_shoot_total) * 100 if opponent_shoot_total > 0 else 0
         opponent_fouls = opponent_detail['matchDetail']['foul']
 
         labels = ["슛", "유효슛", "슛 성공률", "패스 성공률", "파울"]
@@ -549,7 +586,6 @@ class FC_GG_App:
         canvas_agg = FigureCanvasTkAgg(fig, master=frame)
         canvas_agg.draw()
         canvas_agg.get_tk_widget().pack(pady=20)
-
 
     def show_transaction_history(self):
         messagebox.showinfo("기능 미구현", "유저의 거래 기록 조회 기능은 아직 구현되지 않았습니다.")
