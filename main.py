@@ -847,9 +847,19 @@ class FC_GG_App:
 
     def open_logo_window(self):
         logo_window = tk.Toplevel(self.root)
-        logo_window.title("로고 정보")
-        logo_window.geometry("300x200")
-        logo_window.configure(bg='white')
+        logo_window.title("만든 사람")
+
+        self.root.update_idletasks()
+        main_width = self.root.winfo_width()
+        main_height = self.root.winfo_height()
+        main_x = self.root.winfo_x()
+        main_y = self.root.winfo_y()
+
+        window_width = 500
+        window_height = 200
+        x = main_x + (main_width // 2) - (window_width // 2)
+        y = main_y + (main_height // 2) - (window_height // 2)
+        logo_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
         info_label = tk.Label(logo_window, text="한국공학대학교\n\n2020180002 곽정민\n2020184038 황성하", font=("Helvetica", 18))
         info_label.pack(expand=True, fill="both", padx=10, pady=10)
